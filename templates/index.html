@@ -3,223 +3,312 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Password Checker & Generator</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Password & Passphrase Analyzer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            color: #38bdf8;
+            margin-bottom: 24px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        .container {
+            background: rgba(30, 41, 59, 0.65);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 10px;
+            padding: 20px;
+            width: 100%;
+            max-width: 650px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            color: #38bdf8;
+            margin-bottom: 14px;
+            font-weight: 500;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+            padding-bottom: 6px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background-color: #0f172a;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 6px;
+            padding: 9px 12px;
+            color: #f8fafc;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #38bdf8;
+        }
+
+        .btn {
+            background-color: #38bdf8;
+            color: #0f172a;
+            border: none;
+            border-radius: 6px;
+            padding: 9px 18px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #0ea5e9;
+        }
+
+        .btn-full {
+            width: 100%;
+            margin-bottom: 14px;
+            padding: 11px;
+        }
+
+        .passphrase-box {
+            background-color: #0f172a;
+            border: 1px dashed rgba(56, 189, 248, 0.4);
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+            color: #4ade80;
+            font-family: monospace;
+            font-size: 0.95rem;
+            margin-bottom: 14px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .metric-card {
+            background-color: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(56, 189, 248, 0.15);
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 60px;
+        }
+
+        .metric-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            color: #94a3b8;
+            letter-spacing: 0.5px;
+            margin-bottom: 3px;
+            font-weight: 700;
+        }
+
+        .metric-value {
+            font-size: 0.85rem;
+            color: #f8fafc;
+            font-weight: 600;
+        }
+
+        .feedback-box {
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: #fbbf24;
+        }
+
+        @media (max-width: 600px) {
+            .grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between">
-    <div class="container mx-auto px-4 py-8 max-w-2xl">
-        <!-- Header -->
-        <header class="text-center mb-8">
-            <h1 class="text-3xl font-bold tracking-tight mb-2">Password Security Tool</h1>
-            <p class="text-slate-400">Evaluate strength securely or generate a high-entropy passphrase.</p>
-        </header>
+<body>
 
-        <!-- Main Card Container -->
-        <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-6 mb-8">
-            <!-- Tabs -->
-            <div class="flex border-b border-slate-700 mb-6">
-                <button id="tab-checker" onclick="switchTab('checker')" class="pb-3 px-4 font-semibold text-blue-400 border-b-2 border-blue-400 focus:outline-none transition-colors">Strength Checker</button>
-                <button id="tab-generator" onclick="switchTab('generator')" class="pb-3 px-4 font-semibold text-slate-400 hover:text-slate-200 focus:outline-none transition-colors">Passphrase Generator</button>
+    <h1>Password & Passphrase Analyzer</h1>
+
+    <!-- Password Strength Evaluator Section -->
+    <div class="container">
+        <div class="section-title">Password Strength Evaluator</div>
+        <div class="input-group">
+            <input type="text" id="passwordInput" placeholder="Type password to evaluate..." oninput="evaluatePassword()">
+            <button class="btn" onclick="evaluatePassword()">Evaluate</button>
+        </div>
+        
+        <div class="grid">
+            <div class="metric-card">
+                <span class="metric-label">Score</span>
+                <span class="metric-value" id="pwdScore">-</span>
             </div>
-
-            <!-- Section 1: Checker -->
-            <div id="section-checker" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-2">Enter Password to Test</label>
-                    <div class="relative">
-                        <input type="password" id="password-input" placeholder="Type or paste a password..." 
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-colors">
-                        <button onclick="togglePasswordVisibility()" class="absolute right-3 top-3 text-slate-400 hover:text-slate-200 text-sm">Show</button>
-                    </div>
-                </div>
-
-                <!-- Strength Meter -->
-                <div id="strength-container" class="hidden space-y-3 pt-2">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-slate-400">Strength:</span>
-                        <span id="strength-label" class="font-bold">--</span>
-                    </div>
-                    <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
-                        <div id="strength-bar" class="h-full w-0 transition-all duration-300"></div>
-                    </div>
-                    
-                    <!-- HIBP Breach Status Box -->
-                    <div id="breach-container" class="hidden p-3 rounded-lg border text-sm font-medium flex items-center justify-between">
-                        <span id="breach-text">Checking breaches...</span>
-                        <span id="breach-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold"></span>
-                    </div>
-
-                    <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50 space-y-2 text-sm">
-                        <p class="flex justify-between"><span class="text-slate-400">Time to crack:</span> <span id="crack-time" class="font-mono text-slate-200">--</span></p>
-                        <div id="feedback-container" class="text-amber-400 text-xs mt-2"></div>
-                    </div>
-                </div>
+            <div class="metric-card">
+                <span class="metric-label">Entropy</span>
+                <span class="metric-value" id="pwdEntropy">-</span>
             </div>
+            <div class="metric-card">
+                <span class="metric-label">Length</span>
+                <span class="metric-value" id="pwdLength">-</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Online Attack</span>
+                <span class="metric-value" id="pwdOnline">-</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Offline Fast Hash (GPU)</span>
+                <span class="metric-value" id="pwdFastHash">-</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Offline Slow Hash</span>
+                <span class="metric-value" id="pwdSlowHash">-</span>
+            </div>
+        </div>
+        <div id="pwdFeedback" class="feedback-box"></div>
+    </div>
 
-            <!-- Section 2: Generator -->
-            <div id="section-generator" class="space-y-4 hidden">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Word Count</label>
-                        <input type="number" id="word-count" value="4" min="3" max="8" 
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Separator</label>
-                        <select id="word-separator" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
-                            <option value="-">Hyphen (-)</option>
-                            <option value=" ">Space ( )</option>
-                            <option value="_">Underscore (_)</option>
-                            <option value=".">Dot (.)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <button onclick="generatePassphrase()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition-colors">
-                    Generate Passphrase
-                </button>
-
-                <div id="generated-result-container" class="hidden mt-4">
-                    <label class="block text-sm font-medium text-slate-300 mb-2">Your Passphrase</label>
-                    <div class="flex items-center space-x-2">
-                        <input type="text" id="generated-output" readonly 
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 font-mono text-emerald-400 focus:outline-none">
-                        <button onclick="copyPassphrase()" class="bg-slate-700 hover:bg-slate-600 px-4 py-3 rounded-lg font-medium transition-colors">Copy</button>
-                    </div>
-                </div>
+    <!-- EFF Passphrase Generator Section -->
+    <div class="container">
+        <div class="section-title">EFF Passphrase Generator</div>
+        <div class="passphrase-box" id="passphraseOutput">Click generate below</div>
+        <button class="btn btn-full" onclick="generateAndAnalyzePassphrase()">Generate Passphrase & Analyze</button>
+        
+        <div class="grid">
+            <div class="metric-card">
+                <span class="metric-label">Score</span>
+                <span class="metric-value" id="genScore">-</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Entropy</span>
+                <span class="metric-value" id="genEntropy">-</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Length</span>
+                <span class="metric-value" id="genLength">-</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Online Attack</span>
+                <span class="metric-value" id="genOnline">-</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Offline Fast Hash (GPU)</span>
+                <span class="metric-value" id="genFastHash">-</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Offline Slow Hash</span>
+                <span class="metric-value" id="genSlowHash">-</span>
             </div>
         </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="text-center py-4 text-xs text-slate-500 border-t border-slate-800">
-        Powered by Flask & zxcvbn • EFF Large Wordlist
-    </footer>
-
-    <!-- Frontend Script Logic -->
     <script>
-        function switchTab(tab) {
-            const checkerTab = document.getElementById('tab-checker');
-            const generatorTab = document.getElementById('tab-generator');
-            const checkerSec = document.getElementById('section-checker');
-            const generatorSec = document.getElementById('section-generator');
-
-            if (tab === 'checker') {
-                checkerTab.className = "pb-3 px-4 font-semibold text-blue-400 border-b-2 border-blue-400 focus:outline-none transition-colors";
-                generatorTab.className = "pb-3 px-4 font-semibold text-slate-400 hover:text-slate-200 focus:outline-none transition-colors";
-                checkerSec.classList.remove('hidden');
-                generatorSec.classList.add('hidden');
-            } else {
-                generatorTab.className = "pb-3 px-4 font-semibold text-blue-400 border-b-2 border-blue-400 focus:outline-none transition-colors";
-                checkerTab.className = "pb-3 px-4 font-semibold text-slate-400 hover:text-slate-200 focus:outline-none transition-colors";
-                generatorSec.classList.remove('hidden');
-                checkerSec.classList.add('hidden');
-            }
-        }
-
-        function togglePasswordVisibility() {
-            const input = document.getElementById('password-input');
-            const btn = event.target;
-            if (input.type === 'password') {
-                input.type = 'text';
-                btn.textContent = 'Hide';
-            } else {
-                input.type = 'password';
-                btn.textContent = 'Show';
-            }
-        }
-
-        // Event listener for password checking (fetches from Flask backend API)
-        const passwordInput = document.getElementById('password-input');
-        const strengthContainer = document.getElementById('strength-container');
-        
-        passwordInput.addEventListener('input', async function() {
-            const val = passwordInput.value;
-            if (!val) {
-                strengthContainer.classList.add('hidden');
+        async function evaluatePassword() {
+            const pwd = document.getElementById('passwordInput').value;
+            if (!pwd) {
+                resetMetrics('pwd');
                 return;
             }
-            strengthContainer.classList.remove('hidden');
 
             try {
                 const response = await fetch('/api/check', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: val })
+                    body: JSON.stringify({ password: pwd })
                 });
                 const data = await response.json();
-                updateStrengthUI(data);
+                populateMetrics('pwd', data, pwd);
             } catch (err) {
-                console.error("Error checking password strength:", err);
-            }
-        });
-
-        function updateStrengthUI(data) {
-            const bar = document.getElementById('strength-bar');
-            const label = document.getElementById('strength-label');
-            const crackTime = document.getElementById('crack-time');
-            const feedback = document.getElementById('feedback-container');
-            const breachContainer = document.getElementById('breach-container');
-            const breachText = document.getElementById('breach-text');
-            const breachBadge = document.getElementById('breach-count-badge');
-
-            const scores = [
-                { width: '20%', color: 'bg-red-500', text: 'Very Weak' },
-                { width: '40%', color: 'bg-orange-500', text: 'Weak' },
-                { width: '60%', color: 'bg-yellow-500', text: 'Fair' },
-                { width: '80%', color: 'bg-blue-500', text: 'Strong' },
-                { width: '100%', color: 'bg-emerald-500', text: 'Very Strong' }
-            ];
-
-            const current = scores[data.score] || scores[0];
-            bar.style.width = current.width;
-            bar.className = `h-full transition-all duration-300 ${current.color}`;
-            label.textContent = current.text;
-            label.className = `font-bold ${current.color.replace('bg-', 'text-')}`;
-            crackTime.textContent = data.crack_times_display.offline_slow_hashing_1e4_per_second || 'Instant';
-            
-            feedback.innerHTML = data.feedback.warning ? `<p>⚠️ ${data.feedback.warning}</p>` : '';
-            if (data.feedback.suggestions && data.feedback.suggestions.length > 0) {
-                feedback.innerHTML += `<p>💡 ${data.feedback.suggestions.join(' ')}</p>`;
-            }
-
-            // Handle Have I Been Pwned Display Logic
-            breachContainer.classList.remove('hidden');
-            if (data.is_breached) {
-                breachContainer.className = "p-3 rounded-lg border border-red-500/40 bg-red-950/30 text-sm font-medium flex items-center justify-between text-red-300";
-                breachText.textContent = "🚨 Found in data breaches!";
-                breachBadge.className = "bg-red-500 text-white px-2.5 py-0.5 rounded-full text-xs font-bold";
-                breachBadge.textContent = `${data.breach_count.toLocaleString()} times`;
-            } else {
-                breachContainer.className = "p-3 rounded-lg border border-emerald-500/40 bg-emerald-950/30 text-sm font-medium flex items-center justify-between text-emerald-300";
-                breachText.textContent = "✅ Safe (Not found in breaches)";
-                breachBadge.className = "bg-emerald-500 text-white px-2.5 py-0.5 rounded-full text-xs font-bold";
-                breachBadge.textContent = "0 matches";
+                console.error("Error evaluating password:", err);
             }
         }
 
-        async function generatePassphrase() {
-            const count = document.getElementById('word-count').value;
-            const separator = document.getElementById('word-separator').value;
-
+        async function generateAndAnalyzePassphrase() {
             try {
-                const response = await fetch(`/api/generate?words=${count}&separator=${encodeURIComponent(separator)}`);
+                const response = await fetch('/api/generate?words=4&separator=-');
                 const data = await response.json();
                 if (data.passphrase) {
-                    document.getElementById('generated-result-container').classList.remove('hidden');
-                    document.getElementById('generated-output').value = data.passphrase;
+                    document.getElementById('passphraseOutput').innerText = data.passphrase;
+                    
+                    // Automatically evaluate the generated passphrase to fill out the bottom grid
+                    const checkResponse = await fetch('/api/check', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: data.passphrase })
+                    });
+                    const checkData = await checkResponse.json();
+                    populateMetrics('gen', checkData, data.passphrase);
                 }
             } catch (err) {
                 console.error("Error generating passphrase:", err);
             }
         }
 
-        function copyPassphrase() {
-            const output = document.getElementById('generated-output');
-            output.select();
-            document.execCommand('copy');
-            event.target.textContent = 'Copied!';
-            setTimeout(() => event.target.textContent = 'Copy', 2000);
+        function populateMetrics(prefix, data, text) {
+            // Score out of 4 (zxcvbn score is 0-4)
+            document.getElementById(prefix + 'Score').innerText = `${data.score} / 4`;
+            
+            // Length
+            document.getElementById(prefix + 'Length').innerText = `${text.length} chars`;
+
+            // Entropy calculation estimation (bits) based on length or crack times if available
+            let approxEntropy = (text.length * 4.2).toFixed(1);
+            document.getElementById(prefix + 'Entropy').innerText = `${approxEntropy} bits`;
+
+            // Crack times / attacks from zxcvbn display dict
+            const crackDisplay = data.crack_times_display || {};
+            document.getElementById(prefix + 'Online').innerText = crackDisplay.online_throttling_100_per_hour || '-';
+            document.getElementById(prefix + 'FastHash').innerText = crackDisplay.offline_fast_hashing_1e10_per_second || '-';
+            document.getElementById(prefix + 'SlowHash').innerText = crackDisplay.offline_slow_hashing_1e4_per_second || '-';
+
+            // Optional warning feedback for evaluator section
+            if (prefix === 'pwd') {
+                const feedbackEl = document.getElementById('pwdFeedback');
+                if (data.feedback && data.feedback.warning) {
+                    feedbackEl.innerText = `⚠️ ${data.feedback.warning}`;
+                } else if (data.feedback && data.feedback.suggestions && data.feedback.suggestions.length > 0) {
+                    feedbackEl.innerText = `💡 ${data.feedback.suggestions[0]}`;
+                } else {
+                    feedbackEl.innerText = '';
+                }
+            }
+        }
+
+        function resetMetrics(prefix) {
+            document.getElementById(prefix + 'Score').innerText = '-';
+            document.getElementById(prefix + 'Entropy').innerText = '-';
+            document.getElementById(prefix + 'Length').innerText = '-';
+            document.getElementById(prefix + 'Online').innerText = '-';
+            document.getElementById(prefix + 'FastHash').innerText = '-';
+            document.getElementById(prefix + 'SlowHash').innerText = '-';
+            if(prefix === 'pwd') {
+                document.getElementById('pwdFeedback').innerText = '';
+            }
         }
     </script>
 </body>
