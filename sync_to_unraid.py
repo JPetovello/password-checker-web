@@ -16,7 +16,7 @@ def main():
         print(f"[-] Error: The configured path does not exist: {target_dir}")
         return
 
-    # Copy XML file safely (prevents same-file errors)
+    # Copy XML file safely
     if os.path.exists(xml_source):
         src_path = os.path.abspath(xml_source)
         dst_path = os.path.abspath(os.path.join(target_dir, f"{app_name}.xml"))
@@ -45,7 +45,7 @@ def main():
         else:
             print(f"[i] Icon is already in place as {app_name}.png.")
     else:
-        print(f"[-] Warning: No matching app icon found.")
+        print(f"[-] Warning: No matching app icon found (looking for {app_name}.png or icon.png).")
 
     # Optional Git Automation inside the repository
     do_git = input("Automatically commit and push changes? (y/n): ").strip().lower()
@@ -55,9 +55,11 @@ def main():
             os.chdir(target_dir)
             subprocess.run(["git", "add", "."], check=True)
             subprocess.run(["git", "commit", "-m", f"Update template and assets for {app_name}"], check=True)
+            # Pull remote changes first to avoid rejections
+            subprocess.run(["git", "pull", "--rebase"], check=True)
             subprocess.run(["git", "push"], check=True)
             os.chdir(original_dir)
-            print("[+] Successfully pushed changes to GitHub!")
+            print("[+] Successfully synced and pushed changes to GitHub!")
         except subprocess.CalledProcessError as e:
             os.chdir(original_dir)
             print(f"[-] Git command failed: {e}")
