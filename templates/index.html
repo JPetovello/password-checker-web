@@ -42,6 +42,13 @@
                     <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
                         <div id="strength-bar" class="h-full w-0 transition-all duration-300"></div>
                     </div>
+                    
+                    <!-- HIBP Breach Status Box -->
+                    <div id="breach-container" class="hidden p-3 rounded-lg border text-sm font-medium flex items-center justify-between">
+                        <span id="breach-text">Checking breaches...</span>
+                        <span id="breach-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold"></span>
+                    </div>
+
                     <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50 space-y-2 text-sm">
                         <p class="flex justify-between"><span class="text-slate-400">Time to crack:</span> <span id="crack-time" class="font-mono text-slate-200">--</span></p>
                         <div id="feedback-container" class="text-amber-400 text-xs mt-2"></div>
@@ -152,6 +159,9 @@
             const label = document.getElementById('strength-label');
             const crackTime = document.getElementById('crack-time');
             const feedback = document.getElementById('feedback-container');
+            const breachContainer = document.getElementById('breach-container');
+            const breachText = document.getElementById('breach-text');
+            const breachBadge = document.getElementById('breach-count-badge');
 
             const scores = [
                 { width: '20%', color: 'bg-red-500', text: 'Very Weak' },
@@ -171,6 +181,20 @@
             feedback.innerHTML = data.feedback.warning ? `<p>⚠️ ${data.feedback.warning}</p>` : '';
             if (data.feedback.suggestions && data.feedback.suggestions.length > 0) {
                 feedback.innerHTML += `<p>💡 ${data.feedback.suggestions.join(' ')}</p>`;
+            }
+
+            // Handle Have I Been Pwned Display Logic
+            breachContainer.classList.remove('hidden');
+            if (data.is_breached) {
+                breachContainer.className = "p-3 rounded-lg border border-red-500/40 bg-red-950/30 text-sm font-medium flex items-center justify-between text-red-300";
+                breachText.textContent = "🚨 Found in data breaches!";
+                breachBadge.className = "bg-red-500 text-white px-2.5 py-0.5 rounded-full text-xs font-bold";
+                breachBadge.textContent = `${data.breach_count.toLocaleString()} times`;
+            } else {
+                breachContainer.className = "p-3 rounded-lg border border-emerald-500/40 bg-emerald-950/30 text-sm font-medium flex items-center justify-between text-emerald-300";
+                breachText.textContent = "✅ Safe (Not found in breaches)";
+                breachBadge.className = "bg-emerald-500 text-white px-2.5 py-0.5 rounded-full text-xs font-bold";
+                breachBadge.textContent = "0 matches";
             }
         }
 
