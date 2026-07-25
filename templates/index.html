@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Checker & Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between">
+    <div class="container mx-auto px-4 py-8 max-w-2xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold tracking-tight mb-2">Password Security Tool</h1>
+            <p class="text-slate-400">Evaluate strength securely or generate a high-entropy passphrase.</p>
+        </header>
+
+        <!-- Main Card Container -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-xl p-6 mb-8">
+            <!-- Tabs -->
+            <div class="flex border-b border-slate-700 mb-6">
+                <button id="tab-checker" onclick="switchTab('checker')" class="pb-3 px-4 font-semibold text-blue-400 border-b-2 border-blue-400 focus:outline-none transition-colors">Strength Checker</button>
+                <button id="tab-generator" onclick="switchTab('generator')" class="pb-3 px-4 font-semibold text-slate-400 hover:text-slate-200 focus:outline-none transition-colors">Passphrase Generator</button>
+            </div>
+
+            <!-- Section 1: Checker -->
+            <div id="section-checker" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Enter Password to Test</label>
+                    <div class="relative">
+                        <input type="password" id="password-input" placeholder="Type or paste a password..." 
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500 transition-colors">
+                        <button onclick="togglePasswordVisibility()" class="absolute right-3 top-3 text-slate-400 hover:text-slate-200 text-sm">Show</button>
+                    </div>
+                </div>
+
+                <!-- Strength Meter -->
+                <div id="strength-container" class="hidden space-y-3 pt-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-400">Strength:</span>
+                        <span id="strength-label" class="font-bold">--</span>
+                    </div>
+                    <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                        <div id="strength-bar" class="h-full w-0 transition-all duration-300"></div>
+                    </div>
+                    <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700/50 space-y-2 text-sm">
+                        <p class="flex justify-between"><span class="text-slate-400">Time to crack:</span> <span id="crack-time" class="font-mono text-slate-200">--</span></p>
+                        <div id="feedback-container" class="text-amber-400 text-xs mt-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Generator -->
+            <div id="section-generator" class="space-y-4 hidden">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Word Count</label>
+                        <input type="number" id="word-count" value="4" min="3" max="8" 
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Separator</label>
+                        <select id="word-separator" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
+                            <option value="-">Hyphen (-)</option>
+                            <option value=" ">Space ( )</option>
+                            <option value="_">Underscore (_)</option>
+                            <option value=".">Dot (.)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button onclick="generatePassphrase()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition-colors">
+                    Generate Passphrase
+                </button>
+
+                <div id="generated-result-container" class="hidden mt-4">
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Your Passphrase</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="generated-output" readonly 
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 font-mono text-emerald-400 focus:outline-none">
+                        <button onclick="copyPassphrase()" class="bg-slate-700 hover:bg-slate-600 px-4 py-3 rounded-lg font-medium transition-colors">Copy</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center py-4 text-xs text-slate-500 border-t border-slate-800">
+        Powered by Flask & zxcvbn • EFF Large Wordlist
+    </footer>
+
+    <!-- Frontend Script Logic -->
+    <script>
+        function switchTab(tab) {
+            const checkerTab = document.getElementById('tab-checker');
+            const generatorTab = document.getElementById('tab-generator');
+            const checkerSec = document.getElementById('section-checker');
+            const generatorSec = document.getElementById('section-generator');
+
+            if (tab === 'checker') {
+                checkerTab.className = "pb-3 px-4 font-semibold text-blue-400 border-b-2 border-blue-400 focus:outline-none transition-colors";
+                generatorTab.className = "pb-3 px-4 font-semibold text-slate-400 hover:text-slate-200 focus:outline-none transition-colors";
+                checkerSec.classList.remove('hidden');
+                generatorSec.classList.add('hidden');
+            } else {
+                generatorTab.className = "pb-3 px-4 font-semibold text-blue-400 border-b-2 border-blue-400 focus:outline-none transition-colors";
+                checkerTab.className = "pb-3 px-4 font-semibold text-slate-400 hover:text-slate-200 focus:outline-none transition-colors";
+                generatorSec.classList.remove('hidden');
+                checkerSec.classList.add('hidden');
+            }
+        }
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById('password-input');
+            const btn = event.target;
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = 'Hide';
+            } else {
+                input.type = 'password';
+                btn.textContent = 'Show';
+            }
+        }
+
+        // Event listener for password checking (fetches from Flask backend API)
+        const passwordInput = document.getElementById('password-input');
+        const strengthContainer = document.getElementById('strength-container');
+        
+        passwordInput.addEventListener('input', async function() {
+            const val = passwordInput.value;
+            if (!val) {
+                strengthContainer.classList.add('hidden');
+                return;
+            }
+            strengthContainer.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/api/check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: val })
+                });
+                const data = await response.json();
+                updateStrengthUI(data);
+            } catch (err) {
+                console.error("Error checking password strength:", err);
+            }
+        });
+
+        function updateStrengthUI(data) {
+            const bar = document.getElementById('strength-bar');
+            const label = document.getElementById('strength-label');
+            const crackTime = document.getElementById('crack-time');
+            const feedback = document.getElementById('feedback-container');
+
+            const scores = [
+                { width: '20%', color: 'bg-red-500', text: 'Very Weak' },
+                { width: '40%', color: 'bg-orange-500', text: 'Weak' },
+                { width: '60%', color: 'bg-yellow-500', text: 'Fair' },
+                { width: '80%', color: 'bg-blue-500', text: 'Strong' },
+                { width: '100%', color: 'bg-emerald-500', text: 'Very Strong' }
+            ];
+
+            const current = scores[data.score] || scores[0];
+            bar.style.width = current.width;
+            bar.className = `h-full transition-all duration-300 ${current.color}`;
+            label.textContent = current.text;
+            label.className = `font-bold ${current.color.replace('bg-', 'text-')}`;
+            crackTime.textContent = data.crack_times_display.offline_slow_hashing_1e4_per_second || 'Instant';
+            
+            feedback.innerHTML = data.feedback.warning ? `<p>⚠️ ${data.feedback.warning}</p>` : '';
+            if (data.feedback.suggestions && data.feedback.suggestions.length > 0) {
+                feedback.innerHTML += `<p>💡 ${data.feedback.suggestions.join(' ')}</p>`;
+            }
+        }
+
+        async function generatePassphrase() {
+            const count = document.getElementById('word-count').value;
+            const separator = document.getElementById('word-separator').value;
+
+            try {
+                const response = await fetch(`/api/generate?words=${count}&separator=${encodeURIComponent(separator)}`);
+                const data = await response.json();
+                if (data.passphrase) {
+                    document.getElementById('generated-result-container').classList.remove('hidden');
+                    document.getElementById('generated-output').value = data.passphrase;
+                }
+            } catch (err) {
+                console.error("Error generating passphrase:", err);
+            }
+        }
+
+        function copyPassphrase() {
+            const output = document.getElementById('generated-output');
+            output.select();
+            document.execCommand('copy');
+            event.target.textContent = 'Copied!';
+            setTimeout(() => event.target.textContent = 'Copy', 2000);
+        }
+    </script>
+</body>
+</html>
