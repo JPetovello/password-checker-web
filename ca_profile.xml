@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommunityApplications>
+  <Profile>Maintains the password-checker-web Docker container for evaluating password strength and generating secure passphrases.</Profile>
+  <WebPage>https://github.com/JPetovello/password-checker-web</WebPage>
+</CommunityApplications>
