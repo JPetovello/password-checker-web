@@ -1,2 +1,3 @@
 Flask>=3.0.0
 zxcvbn-python>=4.4.28
+requests>=2.31.0
