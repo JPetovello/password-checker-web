@@ -2,11 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Password Security Check</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #0f172a; color: #f8fafc; }
+        main { background: #1e293b; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); width: 100%; max-width: 400px; box-sizing: border-box; }
+        input, button { width: 100%; padding: 0.75rem; margin-top: 0.5rem; margin-bottom: 1rem; border-radius: 0.25rem; border: 1px solid #475569; background: #0f172a; color: #fff; box-sizing: border-box; }
+        button { background: #3b82f6; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #2563eb; }
+    </style>
 </head>
 <body>
     <main>
-        <h1>Password & Passphrase Tool</h1>
+        <h1>Password Tool</h1>
         <form id="generator-form">
             <label for="wordCountSelect">Number of Words (3-10):</label>
             <input 
@@ -22,7 +30,7 @@
             <button type="button" id="generateBtn" aria-label="Generate secure passphrase">Generate Passphrase</button>
         </form>
 
-        <div id="passphraseOutput" aria-live="polite" class="text-slate-400"></div>
+        <div id="passphraseOutput" aria-live="polite" style="margin-top: 1rem; color: #94a3b8;"></div>
     </main>
 </body>
 </html>
