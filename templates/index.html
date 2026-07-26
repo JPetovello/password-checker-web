@@ -15,17 +15,11 @@
         <!-- Password Strength Evaluator Section -->
         <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl">
             <h2 class="text-xl font-semibold mb-4 text-cyan-300">Password Strength Evaluator</h2>
-            <div class="mb-4">
+            <div class="mb-6">
                 <input type="text" id="passwordInput" placeholder="Type password or passphrase to test live..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-cyan-500 text-slate-200">
             </div>
 
-            <!-- HIBP Breach Status Box -->
-            <div id="pwnedStatus" class="mb-6 p-3 rounded-lg bg-slate-900/50 border border-slate-700/60 text-sm text-slate-400 flex items-center justify-between">
-                <span class="font-medium">Breach Status (HIBP):</span>
-                <span id="pwnedText" class="text-slate-500">Awaiting input...</span>
-            </div>
-
-            <!-- 3x2 Grid Layout -->
+            <!-- Grid Layout -->
             <div class="grid grid-cols-3 gap-3">
                 <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
                     <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Score</div>
@@ -51,6 +45,10 @@
                     <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Offline Slow Hash</div>
                     <div id="slowHashVal" class="text-lg font-bold text-slate-200">-</div>
                 </div>
+                <div class="col-span-3 bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
+                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Breach Exposure (HIBP)</div>
+                    <div id="pwnedVal" class="text-lg font-bold text-slate-200">-</div>
+                </div>
             </div>
         </div>
 
@@ -58,7 +56,6 @@
         <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl">
             <h2 class="text-xl font-semibold mb-4 text-cyan-300">EFF Passphrase Generator</h2>
             
-            <!-- Passphrase Display with Copy Button -->
             <div class="flex items-center gap-3 mb-4">
                 <div class="flex-grow bg-slate-900/50 border border-dashed border-slate-600 rounded-lg p-4 text-center text-slate-400 font-mono text-sm" id="passphraseOutput">
                     Click button below to generate
@@ -79,7 +76,7 @@
 
             <button id="generateBtn" class="w-full bg-cyan-600 hover:bg-cyan-500 py-2 rounded-lg font-medium transition mb-6">Generate Passphrase & Analyze</button>
 
-            <!-- 3x2 Grid Layout -->
+            <!-- Grid Layout (No HIBP here) -->
             <div class="grid grid-cols-3 gap-3">
                 <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
                     <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Score</div>
@@ -149,13 +146,10 @@
                 onlineEl.textContent = '-';
                 fastEl.textContent = '-';
                 slowEl.textContent = '-';
-                
                 if (!isGen) {
-                    const pwnedStatusEl = document.getElementById('pwnedStatus');
-                    const pwnedTextEl = document.getElementById('pwnedText');
-                    pwnedTextEl.textContent = 'Awaiting input...';
-                    pwnedTextEl.className = 'text-slate-500 font-medium';
-                    pwnedStatusEl.className = 'mb-6 p-3 rounded-lg bg-slate-900/50 border border-slate-700/60 text-sm text-slate-400 flex items-center justify-between';
+                    const pwnedEl = document.getElementById('pwnedVal');
+                    pwnedEl.textContent = '-';
+                    pwnedEl.className = 'text-lg font-bold text-slate-200';
                 }
                 return;
             }
@@ -170,24 +164,19 @@
                 slowEl.textContent = capitalizeWords(data.crack_times_display.offline_slow_hashing_1e4_per_second);
             }
 
-            // HIBP Breach Status UI Rendering (Only for Password Evaluator)
-            if (!isGen) {
-                const pwnedStatusEl = document.getElementById('pwnedStatus');
-                const pwnedTextEl = document.getElementById('pwnedText');
-                const count = data.pwned_count || 0;
-                if (count > 0) {
-                    pwnedTextEl.textContent = `Found in ${count.toLocaleString()} data breach(es)!`;
-                    pwnedTextEl.className = 'text-red-400 font-bold';
-                    pwnedStatusEl.className = 'mb-6 p-3 rounded-lg bg-red-950/30 border border-red-800/60 text-sm text-slate-300 flex items-center justify-between shadow-inner';
+            // Only update HIBP field for the main evaluator
+            if (!isGen && data.pwned_count !== undefined) {
+                const pwnedEl = document.getElementById('pwnedVal');
+                if (data.pwned_count > 0) {
+                    pwnedEl.textContent = `Found in ${data.pwned_count.toLocaleString()} data breaches!`;
+                    pwnedEl.className = 'text-lg font-bold text-red-400';
                 } else {
-                    pwnedTextEl.textContent = 'Not found in known breaches (Safe)';
-                    pwnedTextEl.className = 'text-emerald-400 font-bold';
-                    pwnedStatusEl.className = 'mb-6 p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/60 text-sm text-slate-300 flex items-center justify-between shadow-inner';
+                    pwnedEl.textContent = 'Safe (0 breaches found)';
+                    pwnedEl.className = 'text-lg font-bold text-emerald-400';
                 }
             }
         }
 
-        // Live typing evaluation
         const passwordInput = document.getElementById('passwordInput');
         let timeout = null;
         passwordInput.addEventListener('input', (e) => {
@@ -198,7 +187,6 @@
             }, 150);
         });
 
-        // Copy button action
         document.getElementById('copyBtn').addEventListener('click', () => {
             const text = document.getElementById('passphraseOutput').innerText;
             if (text && !text.includes('Click button')) {
@@ -209,7 +197,6 @@
             }
         });
 
-        // Passphrase generation action
         document.getElementById('generateBtn').addEventListener('click', async () => {
             const wordCount = document.getElementById('wordCountSelect').value;
             try {
@@ -224,7 +211,7 @@
                     outputEl.textContent = data.passphrase;
                     outputEl.classList.remove('text-slate-400');
                     outputEl.classList.add('text-cyan-300');
-                    analyzePassword(data.passphrase, true);
+                    updateUI(data, true);
                 }
             } catch (err) {
                 console.error('Error generating passphrase:', err);
