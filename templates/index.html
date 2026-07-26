@@ -2,221 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Password & Passphrase Analyzer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Password Security Check</title>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center py-10">
+<body>
+    <main>
+        <h1>Password & Passphrase Tool</h1>
+        <form id="generator-form">
+            <label for="wordCountSelect">Number of Words (3-10):</label>
+            <input 
+                type="number" 
+                id="wordCountSelect" 
+                name="wordCountSelect" 
+                min="3" 
+                max="10" 
+                value="4" 
+                aria-label="Select number of words for passphrase generation" 
+                required
+            >
+            <button type="button" id="generateBtn" aria-label="Generate secure passphrase">Generate Passphrase</button>
+        </form>
 
-    <h1 class="text-3xl font-bold mb-8 text-cyan-400">Password & Passphrase Analyzer</h1>
-
-    <div class="w-full max-w-4xl space-y-8 px-4">
-        
-        <!-- Password Strength Evaluator Section -->
-        <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl">
-            <h2 class="text-xl font-semibold mb-4 text-cyan-300">Password Strength Evaluator</h2>
-            <div class="mb-6">
-                <input type="text" id="passwordInput" placeholder="Type password or passphrase to test live..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-cyan-500 text-slate-200">
-            </div>
-
-            <!-- Grid Layout -->
-            <div class="grid grid-cols-3 gap-3">
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Score</div>
-                    <div id="scoreVal" class="text-lg font-bold text-slate-200">- / 4</div>
-                </div>
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Entropy</div>
-                    <div id="entropyVal" class="text-lg font-bold text-slate-200">0 bits</div>
-                </div>
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Length</div>
-                    <div id="lengthVal" class="text-lg font-bold text-slate-200">0 chars</div>
-                </div>
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Online Attack</div>
-                    <div id="onlineVal" class="text-lg font-bold text-slate-200">-</div>
-                </div>
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Offline Fast Hash (GPU)</div>
-                    <div id="fastHashVal" class="text-lg font-bold text-slate-200">-</div>
-                </div>
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Offline Slow Hash</div>
-                    <div id="slowHashVal" class="text-lg font-bold text-slate-200">-</div>
-                </div>
-                <div class="col-span-3 bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Breach Exposure (HIBP)</div>
-                    <div id="pwnedVal" class="text-lg font-bold text-slate-200">-</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- EFF Passphrase Generator Section -->
-        <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl">
-            <h2 class="text-xl font-semibold mb-4 text-cyan-300">EFF Passphrase Generator</h2>
-            
-            <div class="flex items-center gap-3 mb-4">
-                <div class="flex-grow bg-slate-900/50 border border-dashed border-slate-600 rounded-lg p-4 text-center text-slate-400 font-mono text-sm" id="passphraseOutput">
-                    Click button below to generate
-                </div>
-                <button id="copyBtn" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-4 rounded-lg font-medium transition text-sm">Copy</button>
-            </div>
-
-            <div class="mb-4">
-                <select id="wordCountSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
-                    <option value="3">3 Words</option>
-                    <option value="4">4 Words</option>
-                    <option value="5">5 Words</option>
-                    <option value="6">6 Words</option>
-                    <option value="7">7 Words</option>
-                    <option value="8" selected>8 Words</option>
-                </select>
-            </div>
-
-            <button id="generateBtn" class="w-full bg-cyan-600 hover:bg-cyan-500 py-2 rounded-lg font-medium transition mb-6">Generate Passphrase & Analyze</button>
-
-            <!-- Grid Layout (No HIBP here) -->
-            <div class="grid grid-cols-3 gap-3">
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Score</div>
-                    <div id="genScoreVal" class="text-lg font-bold text-slate-200">- / 4</div>
-                </div>
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Entropy</div>
-                    <div id="genEntropyVal" class="text-lg font-bold text-slate-200">0 bits</div>
-                </div>
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Length</div>
-                    <div id="genLengthVal" class="text-lg font-bold text-slate-200">0 chars</div>
-                </div>
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Online Attack</div>
-                    <div id="genOnlineVal" class="text-lg font-bold text-slate-200">-</div>
-                </div>
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Offline Fast Hash (GPU)</div>
-                    <div id="genFastHashVal" class="text-lg font-bold text-slate-200">-</div>
-                </div>
-                <div class="bg-slate-900/50 border border-slate-700/60 p-4 rounded-lg text-center">
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Offline Slow Hash</div>
-                    <div id="genSlowHashVal" class="text-lg font-bold text-slate-200">-</div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <script>
-        function capitalizeWords(str) {
-            if (!str) return '-';
-            return str.replace(/\b\w/g, char => char.toUpperCase());
-        }
-
-        async function analyzePassword(password, isGen = false) {
-            if (!password) {
-                updateUI(null, isGen);
-                return;
-            }
-            try {
-                const response = await fetch('/api/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: password })
-                });
-                const data = await response.json();
-                updateUI(data, isGen);
-            } catch (err) {
-                console.error('Error analyzing password:', err);
-            }
-        }
-
-        function updateUI(data, isGen) {
-            const scoreEl = document.getElementById(isGen ? 'genScoreVal' : 'scoreVal');
-            const entropyEl = document.getElementById(isGen ? 'genEntropyVal' : 'entropyVal');
-            const lengthEl = document.getElementById(isGen ? 'genLengthVal' : 'lengthVal');
-            const onlineEl = document.getElementById(isGen ? 'genOnlineVal' : 'onlineVal');
-            const fastEl = document.getElementById(isGen ? 'genFastHashVal' : 'fastHashVal');
-            const slowEl = document.getElementById(isGen ? 'genSlowHashVal' : 'slowHashVal');
-
-            if (!data) {
-                scoreEl.textContent = '- / 4';
-                entropyEl.textContent = '0 bits';
-                lengthEl.textContent = '0 chars';
-                onlineEl.textContent = '-';
-                fastEl.textContent = '-';
-                slowEl.textContent = '-';
-                if (!isGen) {
-                    const pwnedEl = document.getElementById('pwnedVal');
-                    pwnedEl.textContent = '-';
-                    pwnedEl.className = 'text-lg font-bold text-slate-200';
-                }
-                return;
-            }
-
-            scoreEl.textContent = (data.score !== undefined ? data.score : '-') + ' / 4';
-            entropyEl.textContent = (data.entropy !== undefined ? data.entropy : '0') + ' bits';
-            lengthEl.textContent = (data.length !== undefined ? data.length : '0') + ' chars';
-
-            if (data.crack_times_display) {
-                onlineEl.textContent = capitalizeWords(data.crack_times_display.online_throttling_100_per_hour);
-                fastEl.textContent = capitalizeWords(data.crack_times_display.offline_fast_hashing_1e10_per_second);
-                slowEl.textContent = capitalizeWords(data.crack_times_display.offline_slow_hashing_1e4_per_second);
-            }
-
-            // Only update HIBP field for the main evaluator
-            if (!isGen && data.pwned_count !== undefined) {
-                const pwnedEl = document.getElementById('pwnedVal');
-                if (data.pwned_count > 0) {
-                    pwnedEl.textContent = `Found in ${data.pwned_count.toLocaleString()} data breaches!`;
-                    pwnedEl.className = 'text-lg font-bold text-red-400';
-                } else {
-                    pwnedEl.textContent = 'Safe (0 breaches found)';
-                    pwnedEl.className = 'text-lg font-bold text-emerald-400';
-                }
-            }
-        }
-
-        const passwordInput = document.getElementById('passwordInput');
-        let timeout = null;
-        passwordInput.addEventListener('input', (e) => {
-            clearTimeout(timeout);
-            const val = e.target.value;
-            timeout = setTimeout(() => {
-                analyzePassword(val, false);
-            }, 150);
-        });
-
-        document.getElementById('copyBtn').addEventListener('click', () => {
-            const text = document.getElementById('passphraseOutput').innerText;
-            if (text && !text.includes('Click button')) {
-                navigator.clipboard.writeText(text);
-                const btn = document.getElementById('copyBtn');
-                btn.innerText = 'Copied!';
-                setTimeout(() => btn.innerText = 'Copy', 2000);
-            }
-        });
-
-        document.getElementById('generateBtn').addEventListener('click', async () => {
-            const wordCount = document.getElementById('wordCountSelect').value;
-            try {
-                const response = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ words: parseInt(wordCount) })
-                });
-                const data = await response.json();
-                if (data.passphrase) {
-                    const outputEl = document.getElementById('passphraseOutput');
-                    outputEl.textContent = data.passphrase;
-                    outputEl.classList.remove('text-slate-400');
-                    outputEl.classList.add('text-cyan-300');
-                    updateUI(data, true);
-                }
-            } catch (err) {
-                console.error('Error generating passphrase:', err);
-            }
-        });
-    </script>
+        <div id="passphraseOutput" aria-live="polite" class="text-slate-400"></div>
+    </main>
 </body>
 </html>

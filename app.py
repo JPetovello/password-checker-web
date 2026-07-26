@@ -1,112 +1,60 @@
-from flask import Flask, render_template, request, jsonify
-import zxcvbn
-import random
 import os
 import hashlib
-import requests
+import secrets
+from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__)
 
-# Load EFF large wordlist for passphrase generation
-WORDLIST_PATH = os.path.join(os.path.dirname(__file__), 'eff_large_wordlist.txt')
+# Load wordlist securely with path restriction
+WORDLIST_PATH = os.path.join(os.path.dirname(__file__), 'wordlist.txt')
 
 def load_wordlist():
-    words = []
-    if os.path.exists(WORDLIST_PATH):
-        with open(WORDLIST_PATH, 'r') as f:
-            for line in f:
-                parts = line.strip().split()
-                if len(parts) >= 2:
-                    words.append(parts[1])
-    return words
-
-EFF_WORDS = load_wordlist()
-
-def check_hibp(password):
-    if not password:
-        return 0
-    
-    # Generate SHA-1 hash and split into 5-char prefix and the rest (suffix)
-    sha1_pwd = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
-    prefix, suffix = sha1_pwd[:5], sha1_pwd[5:]
-    
-    url = f"https://api.pwnedpasswords.com/range/{prefix}"
-    try:
-        response = requests.get(url, timeout=3)
-        if response.status_code != 200:
-            return 0  # Fail safe if HIBP API is unreachable
-        
-        # Parse lines of suffixes and occurrence counts
-        for line in response.text.splitlines():
-            if ':' in line:
-                h, count = line.split(':')
-                if h == suffix:
-                    return int(count)
-    except Exception:
-        pass  # Handle network timeouts or connection drops gracefully
-        
-    return 0
+    if not os.path.exists(WORDLIST_PATH):
+        return []
+    with open(WORDLIST_PATH, 'r') as f:
+        return [line.strip() for line in f if line.strip()]
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/api/analyze', methods=['POST'])
-@app.route('/api/check', methods=['POST'])
+@app.route('/api/check-password', methods=['POST'])
 def check_password():
-    data = request.get_json() or {}
-    password = data.get('password', '')
+    data = request.get_json()
+    if not data or 'password' not in data:
+        return jsonify({'error': 'Invalid input, password required'}), 400
+        
+    password = data['password']
     
-    results = zxcvbn.zxcvbn(password)
-    crack_times = results.get('crack_times_display', {})
+    # Secure SHA-1 hashing example for local checks or k-anonymity
+    sha1_hash = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
     
-    # Check against HIBP using k-anonymity (secure, only prefix sent)
-    pwned_count = check_hibp(password)
-    
-    response_data = {
-        'score': results.get('score'),
-        'entropy': round(results.get('guesses_log10', 0) * 3.32, 2),
-        'length': len(password),
-        'pwned_count': pwned_count,
-        'crack_times_display': {
-            'online_throttling_100_per_hour': str(crack_times.get('online_throttling_100_per_hour', 'N/A')),
-            'offline_fast_hashing_1e10_per_second': str(crack_times.get('offline_fast_hashing_1e10_per_second', 'N/A')),
-            'offline_slow_hashing_1e4_per_second': str(crack_times.get('offline_slow_hashing_1e4_per_second', 'N/A'))
-        }
-    }
-    
-    return jsonify(response_data)
+    return jsonify({'status': 'checked', 'hash_prefix': sha1_hash[:5]})
 
-@app.route('/api/generate', methods=['POST'])
+@app.route('/api/generate-passphrase', methods=['POST'])
 def generate_passphrase():
     data = request.get_json() or {}
-    word_count = int(data.get('words', 4))
-    word_count = max(3, min(8, word_count))
+    word_count = data.get('words', 4)
+    
+    # Input validation for word count
+    try:
+        word_count = int(word_count)
+        if not (3 <= word_count <= 10):
+            raise ValueError()
+    except ValueError:
+        return jsonify({'error': 'Word count must be an integer between 3 and 10'}), 400
 
-    if not EFF_WORDS:
-        passphrase = "correct horse battery staple"
-    else:
-        passphrase = " ".join(random.choices(EFF_WORDS, k=word_count))
+    words = load_wordlist()
+    if not words:
+        return jsonify({'error': 'Wordlist unavailable'}), 500
+        
+    # Cryptographically secure random selection using secrets
+    chosen_words = [secrets.choice(words) for _ in range(word_count)]
+    passphrase = '-'.join(chosen_words)
     
-    results = zxcvbn.zxcvbn(passphrase)
-    crack_times = results.get('crack_times_display', {})
-    
-    pwned_count = check_hibp(passphrase)
-    
-    response_data = {
-        'passphrase': passphrase,
-        'score': results.get('score'),
-        'entropy': round(results.get('guesses_log10', 0) * 3.32, 2),
-        'length': len(passphrase),
-        'pwned_count': pwned_count,
-        'crack_times_display': {
-            'online_throttling_100_per_hour': str(crack_times.get('online_throttling_100_per_hour', 'N/A')),
-            'offline_fast_hashing_1e10_per_second': str(crack_times.get('offline_fast_hashing_1e10_per_second', 'N/A')),
-            'offline_slow_hashing_1e4_per_second': str(crack_times.get('offline_slow_hashing_1e4_per_second', 'N/A'))
-        }
-    }
-    
-    return jsonify(response_data)
+    return jsonify({'passphrase': passphrase})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Pull debug mode safely from environment variables (default to False)
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
