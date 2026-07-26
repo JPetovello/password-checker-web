@@ -15,8 +15,14 @@
         <!-- Password Strength Evaluator Section -->
         <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl">
             <h2 class="text-xl font-semibold mb-4 text-cyan-300">Password Strength Evaluator</h2>
-            <div class="mb-6">
+            <div class="mb-4">
                 <input type="text" id="passwordInput" placeholder="Type password or passphrase to test live..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-cyan-500 text-slate-200">
+            </div>
+
+            <!-- HIBP Breach Status Box -->
+            <div id="pwnedStatus" class="mb-6 p-3 rounded-lg bg-slate-900/50 border border-slate-700/60 text-sm text-slate-400 flex items-center justify-between">
+                <span class="font-medium">Breach Status (HIBP):</span>
+                <span id="pwnedText" class="text-slate-500">Awaiting input...</span>
             </div>
 
             <!-- 3x2 Grid Layout -->
@@ -143,6 +149,14 @@
                 onlineEl.textContent = '-';
                 fastEl.textContent = '-';
                 slowEl.textContent = '-';
+                
+                if (!isGen) {
+                    const pwnedStatusEl = document.getElementById('pwnedStatus');
+                    const pwnedTextEl = document.getElementById('pwnedText');
+                    pwnedTextEl.textContent = 'Awaiting input...';
+                    pwnedTextEl.className = 'text-slate-500 font-medium';
+                    pwnedStatusEl.className = 'mb-6 p-3 rounded-lg bg-slate-900/50 border border-slate-700/60 text-sm text-slate-400 flex items-center justify-between';
+                }
                 return;
             }
 
@@ -154,6 +168,22 @@
                 onlineEl.textContent = capitalizeWords(data.crack_times_display.online_throttling_100_per_hour);
                 fastEl.textContent = capitalizeWords(data.crack_times_display.offline_fast_hashing_1e10_per_second);
                 slowEl.textContent = capitalizeWords(data.crack_times_display.offline_slow_hashing_1e4_per_second);
+            }
+
+            // HIBP Breach Status UI Rendering (Only for Password Evaluator)
+            if (!isGen) {
+                const pwnedStatusEl = document.getElementById('pwnedStatus');
+                const pwnedTextEl = document.getElementById('pwnedText');
+                const count = data.pwned_count || 0;
+                if (count > 0) {
+                    pwnedTextEl.textContent = `Found in ${count.toLocaleString()} data breach(es)!`;
+                    pwnedTextEl.className = 'text-red-400 font-bold';
+                    pwnedStatusEl.className = 'mb-6 p-3 rounded-lg bg-red-950/30 border border-red-800/60 text-sm text-slate-300 flex items-center justify-between shadow-inner';
+                } else {
+                    pwnedTextEl.textContent = 'Not found in known breaches (Safe)';
+                    pwnedTextEl.className = 'text-emerald-400 font-bold';
+                    pwnedStatusEl.className = 'mb-6 p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/60 text-sm text-slate-300 flex items-center justify-between shadow-inner';
+                }
             }
         }
 

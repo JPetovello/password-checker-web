@@ -2,8 +2,6 @@ from flask import Flask, render_template, request, jsonify
 import zxcvbn
 import random
 import os
-import hashlib
-import requests
 
 app = Flask(__name__)
 
@@ -22,31 +20,6 @@ def load_wordlist():
 
 EFF_WORDS = load_wordlist()
 
-def check_hibp(password):
-    if not password:
-        return 0
-    
-    # Generate SHA-1 hash and split into 5-char prefix and the rest (suffix)
-    sha1_pwd = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
-    prefix, suffix = sha1_pwd[:5], sha1_pwd[5:]
-    
-    url = f"https://api.pwnedpasswords.com/range/{prefix}"
-    try:
-        response = requests.get(url, timeout=3)
-        if response.status_code != 200:
-            return 0  # Fail safe if HIBP API is unreachable
-        
-        # Parse lines of suffixes and occurrence counts
-        for line in response.text.splitlines():
-            if ':' in line:
-                h, count = line.split(':')
-                if h == suffix:
-                    return int(count)
-    except Exception:
-        pass  # Handle network timeouts or connection drops gracefully
-        
-    return 0
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -60,14 +33,10 @@ def check_password():
     results = zxcvbn.zxcvbn(password)
     crack_times = results.get('crack_times_display', {})
     
-    # Check against HIBP using k-anonymity (secure, only prefix sent)
-    pwned_count = check_hibp(password)
-    
     response_data = {
         'score': results.get('score'),
         'entropy': round(results.get('guesses_log10', 0) * 3.32, 2),
         'length': len(password),
-        'pwned_count': pwned_count,
         'crack_times_display': {
             'online_throttling_100_per_hour': str(crack_times.get('online_throttling_100_per_hour', 'N/A')),
             'offline_fast_hashing_1e10_per_second': str(crack_times.get('offline_fast_hashing_1e10_per_second', 'N/A')),
@@ -91,14 +60,11 @@ def generate_passphrase():
     results = zxcvbn.zxcvbn(passphrase)
     crack_times = results.get('crack_times_display', {})
     
-    pwned_count = check_hibp(passphrase)
-    
     response_data = {
         'passphrase': passphrase,
         'score': results.get('score'),
         'entropy': round(results.get('guesses_log10', 0) * 3.32, 2),
         'length': len(passphrase),
-        'pwned_count': pwned_count,
         'crack_times_display': {
             'online_throttling_100_per_hour': str(crack_times.get('online_throttling_100_per_hour', 'N/A')),
             'offline_fast_hashing_1e10_per_second': str(crack_times.get('offline_fast_hashing_1e10_per_second', 'N/A')),
