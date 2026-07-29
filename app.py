@@ -1,161 +1,149 @@
 import os
-import math
-import hashlib
-import requests
+import uuid
 import secrets
-from flask import Flask, request, jsonify, render_template
+import hashlib
+import math
+import requests
+from flask import Flask, render_template, request, jsonify
+import zxcvbn
 
 app = Flask(__name__)
 
+# Load full EFF Large Wordlist, preserving original casing
+EFF_WORDS = []
 WORDLIST_PATH = os.path.join(os.path.dirname(__file__), 'eff_large_wordlist.txt')
 
-def send_telemetry_ping():
-    disable_telemetry = os.environ.get('DISABLE_TELEMETRY', 'false').lower() in ('true', '1', 'yes')
-    if disable_telemetry:
-        print("[Telemetry] Opt-out enabled. Skipping startup ping.")
+if os.path.exists(WORDLIST_PATH):
+    with open(WORDLIST_PATH, 'r', encoding='utf-8') as f:
+        for line in f:
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) >= 2:
+                EFF_WORDS.append(parts[1])
+            elif parts:
+                EFF_WORDS.append(parts[0])
+    print(f"[Wordlist] Loaded {len(EFF_WORDS)} words from {WORDLIST_PATH}")
+else:
+    print(f"[Wordlist Warning] {WORDLIST_PATH} not found. Using fallback list.")
+    EFF_WORDS = ["correct", "horse", "battery", "staple", "dragon", "subway", "security"]
+
+def send_telemetry():
+    if os.getenv("DISABLE_TELEMETRY", "false").lower() == "true":
+        print("[Telemetry] Opt-out enabled. Skipping ping.")
         return
 
-    webhook_url = os.environ.get('DISCORD_WEBHOOK_URL')
-    if not webhook_url:
-        print("[Telemetry] No Discord Webhook URL configured. Skipping.")
-        return
+    project_token = "phc_oVCjbdLFur2Qq8cvj8jsJeeLGxVPCTTLxePGfMpQH4Vm"
+    instance_id = str(uuid.uuid4())
 
     payload = {
-        "username": "PasswordCheckerWeb",
-        "embeds": [
-            {
-                "title": "🚀 Container Started",
-                "description": "PasswordCheckerWeb instance is up and running.",
-                "color": 5763719
-            }
-        ]
+        "api_key": project_token,
+        "event": "container_started",
+        "distinct_id": instance_id,
+        "properties": {
+            "app_version": "v1.1.4",
+            "$process_person_profile": False
+        }
     }
 
     try:
-        response = requests.post(webhook_url, json=payload, timeout=5)
-        if response.status_code in (200, 204):
-            print("[Telemetry] Startup notification sent successfully.")
-        else:
-            print(f"[Telemetry] Webhook returned status code: {response.status_code}")
+        response = requests.post(
+            "https://eu.i.posthog.com/i/v0/e/", 
+            json=payload, 
+            timeout=5
+        )
+        if response.status_code == 200:
+            print("[Telemetry] Anonymous startup event logged to EU servers.")
     except Exception as e:
-        print(f"[Telemetry] Could not send ping: {e}")
+        print(f"[Telemetry] Ping skipped: {e}")
 
-def load_wordlist():
+send_telemetry()
+
+def check_hibp(password):
+    """Check password leak count via Have I Been Pwned API using k-Anonymity with required User-Agent."""
+    sha1_password = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
+    prefix = sha1_password[:5]
+    suffix = sha1_password[5:]
+
+    url = f"https://api.pwnedpasswords.com/range/{prefix}"
+    headers = {'User-Agent': 'PasswordCheckerWeb-Homelab-App'}
+    
     try:
-        if not os.path.exists(WORDLIST_PATH):
-            return []
-        with open(WORDLIST_PATH, 'r') as f:
-            words = []
-            for line in f:
-                parts = line.strip().split()
-                if len(parts) >= 2:
-                    words.append(parts[1])
-                elif parts:
-                    words.append(parts[0])
-            return words
-    except Exception as e:
-        app.logger.error(f"Error reading wordlist: {e}")
-        return []
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code != 200:
+            return 0
 
-@app.route('/')
+        for line in res.text.splitlines():
+            if ':' in line:
+                h, count = line.split(':', 1)
+                if h.strip() == suffix:
+                    return int(count)
+    except Exception as e:
+        print(f"[HIBP Error] {e}")
+        return 0
+
+    return 0
+
+def calculate_entropy(password):
+    charset_size = 0
+    if any(c.islower() for c in password): charset_size += 26
+    if any(c.isupper() for c in password): charset_size += 26
+    if any(c.isdigit() for c in password): charset_size += 10
+    if any(not c.isalnum() for c in password): charset_size += 32
+    
+    if charset_size == 0 or len(password) == 0:
+        return 0
+    
+    return round(len(password) * math.log2(charset_size))
+
+@app.route('/', methods=['GET'])
 def index():
     return render_template('index.html')
 
 @app.route('/api/evaluate', methods=['POST'])
 def evaluate_password():
-    try:
-        data = request.get_json(silent=True)
-        if not data or 'password' not in data:
-            return jsonify({'error': 'Password required'}), 400
-            
-        password = data['password']
-        if not isinstance(password, str):
-            return jsonify({'error': 'Password must be a string'}), 400
+    data = request.get_json() or {}
+    password = data.get('password', '')
 
-        length = len(password)
-        
-        has_lower = any(c.islower() for c in password)
-        has_upper = any(c.isupper() for c in password)
-        has_digit = any(c.isdigit() for c in password)
-        has_symbol = any(not c.isalnum() for c in password)
-        
-        pool_size = 0
-        if has_lower: pool_size += 26
-        if has_upper: pool_size += 26
-        if has_digit: pool_size += 10
-        if has_symbol: pool_size += 32
-        
-        pool_size = max(pool_size, 1)
-        entropy = length * math.log2(pool_size) if length > 0 else 0
-        
-        score = 0
-        if length >= 8: score += 1
-        if length >= 12: score += 1
-        if (has_lower and has_upper) or (has_digit and has_symbol): score += 1
-        if entropy > 60: score += 1
-        score = min(score, 4)
+    if not password:
+        return jsonify({'error': 'No password provided'}), 400
 
-        sha1_hash = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
-        prefix, suffix = sha1_hash[:5], sha1_hash[5:]
-        
-        hibp_found = False
-        hibp_count = 0
-        try:
-            resp = requests.get(f"https://api.pwnedpasswords.com/range/{prefix}", timeout=3)
-            if resp.status_code == 200:
-                hashes = (line.split(':') for line in resp.text.splitlines())
-                for h, count in hashes:
-                    if h == suffix:
-                        hibp_found = True
-                        hibp_count = int(count)
-                        break
-        except Exception:
-            pass
+    results = zxcvbn.zxcvbn(password)
+    pwned_count = check_hibp(password)
+    entropy_val = calculate_entropy(password)
 
-        response_data = {
-            'score': score,
-            'entropy': entropy,
-            'crack_times_display': {
-                'online_throttling_100_per_hour': 'Instant' if entropy < 20 else 'Several hours',
-                'offline_fast_hashing_1e10_per_second': 'Instant' if entropy < 30 else 'Centuries',
-                'offline_slow_hashing_1e4_per_second': 'Instant' if entropy < 40 else 'Millennia'
-            },
-            'hibp': {
-                'prefix': prefix,
-                'found': hibp_found,
-                'count': hibp_count
-            }
+    # Capitalize the crack times display strings (e.g., "centuries" -> "Centuries", "4 years" -> "4 Years")
+    raw_crack_times = results.get('crack_times_display', {})
+    capitalized_crack_times = {k: v.title() for k, v in raw_crack_times.items()}
+
+    return jsonify({
+        'score': results['score'],
+        'entropy': entropy_val,
+        'feedback': results['feedback'],
+        'crack_times_display': capitalized_crack_times,
+        'hibp': {
+            'found': pwned_count > 0,
+            'count': pwned_count
         }
-        
-        return jsonify(response_data), 200
-    except Exception as e:
-        app.logger.error(f"Server error in evaluate_password: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+    })
 
 @app.route('/api/generate', methods=['GET'])
 def generate_passphrase():
     try:
-        word_count = request.args.get('words', 4)
-        try:
-            word_count = int(word_count)
-            if not (3 <= word_count <= 10):
-                raise ValueError()
-        except ValueError:
-            word_count = 4
+        num_words = int(request.args.get('words', 4))
+    except (ValueError, TypeError):
+        num_words = 4
 
-        words = load_wordlist()
-        if not words:
-            return jsonify({'error': 'Wordlist unavailable'}), 500
-            
-        chosen_words = [secrets.choice(words) for _ in range(word_count)]
-        passphrase = '-'.join(chosen_words)
-        
-        return jsonify({'passphrase': passphrase}), 200
-    except Exception as e:
-        app.logger.error(f"Server error in generate_passphrase: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+    num_words = max(3, min(num_words, 10))
+
+    if not EFF_WORDS:
+        return jsonify({'error': 'Wordlist empty'}), 500
+
+    selected_words = [secrets.choice(EFF_WORDS) for _ in range(num_words)]
+    passphrase = "-".join(selected_words)
+
+    return jsonify({
+        'passphrase': passphrase,
+        'words': selected_words
+    })
 
 if __name__ == '__main__':
-    send_telemetry_ping()
-    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
-    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
+    app.run(host='0.0.0.0', port=5000)
