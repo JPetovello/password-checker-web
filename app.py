@@ -39,7 +39,7 @@ def send_telemetry():
         "event": "container_started",
         "distinct_id": instance_id,
         "properties": {
-            "app_version": "v1.1.4",
+            "app_version": "v1.1.5",
             "$process_person_profile": False
         }
     }
