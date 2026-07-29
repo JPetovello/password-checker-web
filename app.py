@@ -9,6 +9,37 @@ app = Flask(__name__)
 
 WORDLIST_PATH = os.path.join(os.path.dirname(__file__), 'eff_large_wordlist.txt')
 
+def send_telemetry_ping():
+    disable_telemetry = os.environ.get('DISABLE_TELEMETRY', 'false').lower() in ('true', '1', 'yes')
+    if disable_telemetry:
+        print("[Telemetry] Opt-out enabled. Skipping startup ping.")
+        return
+
+    webhook_url = os.environ.get('DISCORD_WEBHOOK_URL')
+    if not webhook_url:
+        print("[Telemetry] No Discord Webhook URL configured. Skipping.")
+        return
+
+    payload = {
+        "username": "PasswordCheckerWeb",
+        "embeds": [
+            {
+                "title": "🚀 Container Started",
+                "description": "PasswordCheckerWeb instance is up and running.",
+                "color": 5763719
+            }
+        ]
+    }
+
+    try:
+        response = requests.post(webhook_url, json=payload, timeout=5)
+        if response.status_code in (200, 204):
+            print("[Telemetry] Startup notification sent successfully.")
+        else:
+            print(f"[Telemetry] Webhook returned status code: {response.status_code}")
+    except Exception as e:
+        print(f"[Telemetry] Could not send ping: {e}")
+
 def load_wordlist():
     try:
         if not os.path.exists(WORDLIST_PATH):
@@ -125,5 +156,6 @@ def generate_passphrase():
         return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
+    send_telemetry_ping()
     debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
     app.run(host='0.0.0.0', port=5000, debug=debug_mode)
