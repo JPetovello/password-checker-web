@@ -9,6 +9,9 @@ import zxcvbn
 
 app = Flask(__name__)
 
+# Grab version from environment variable set by Docker build args, default to v1.1.8
+APP_VERSION = os.environ.get("APP_VERSION", "v1.1.8")
+
 # Load full EFF Large Wordlist, preserving original casing
 EFF_WORDS = []
 WORDLIST_PATH = os.path.join(os.path.dirname(__file__), 'eff_large_wordlist.txt')
@@ -39,7 +42,7 @@ def send_telemetry():
         "event": "container_started",
         "distinct_id": instance_id,
         "properties": {
-            "app_version": "v1.1.5",
+            "app_version": APP_VERSION,
             "$process_person_profile": False
         }
     }
@@ -96,7 +99,7 @@ def calculate_entropy(password):
 
 @app.route('/', methods=['GET'])
 def index():
-    return render_template('index.html')
+    return render_template('index.html', app_version=APP_VERSION)
 
 @app.route('/api/evaluate', methods=['POST'])
 def evaluate_password():
