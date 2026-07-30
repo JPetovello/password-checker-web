@@ -9,8 +9,9 @@ import zxcvbn
 
 app = Flask(__name__)
 
-# Grab version from environment variable set by Docker build args, default to v1.1.8
-APP_VERSION = os.environ.get("APP_VERSION", "v1.1.8")
+# Grab version and install source from environment variables
+APP_VERSION = os.environ.get("APP_VERSION", "v1.1.15")
+INSTALL_SOURCE = os.environ.get("INSTALL_SOURCE", "DockerHub / Manual")
 
 # Load full EFF Large Wordlist, preserving original casing
 EFF_WORDS = []
@@ -43,6 +44,7 @@ def send_telemetry():
         "distinct_id": instance_id,
         "properties": {
             "app_version": APP_VERSION,
+            "install_source": INSTALL_SOURCE,
             "$process_person_profile": False
         }
     }
@@ -58,7 +60,25 @@ def send_telemetry():
     except Exception as e:
         print(f"[Telemetry] Ping skipped: {e}")
 
+def send_discord_notification():
+    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
+    if not webhook_url:
+        return
+
+    # Clean display string for Unraid CA vs standard Docker
+    source_display = "Unraid CA" if INSTALL_SOURCE.lower() == "unraid_ca" else INSTALL_SOURCE
+
+    payload = {
+        "content": f"🚀 **PasswordCheckerWeb** `{APP_VERSION}` container started! *(Source: **{source_display}**)*"
+    }
+
+    try:
+        requests.post(webhook_url, json=payload, timeout=5)
+    except Exception as e:
+        print(f"[Discord Webhook Error] {e}")
+
 send_telemetry()
+send_discord_notification()
 
 def check_hibp(password):
     """Check password leak count via Have I Been Pwned API using k-Anonymity with required User-Agent."""
