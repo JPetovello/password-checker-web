@@ -77,8 +77,6 @@ def send_discord_notification():
     except Exception as e:
         print(f"[Discord Webhook Error] {e}")
 
-send_telemetry()
-send_discord_notification()
 
 def check_hibp(password):
     """Check password leak count via Have I Been Pwned API using k-Anonymity with required User-Agent."""
@@ -168,4 +166,15 @@ def generate_passphrase():
     })
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    import os
+    lock_file = "/tmp/startup_notification.lock"
+    if not os.path.exists(lock_file):
+        try:
+            with open(lock_file, "w") as f:
+                f.write("1")
+            send_telemetry()
+            send_discord_notification()
+        except Exception as e:
+            print(f"Startup notification error: {e}")
+
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
