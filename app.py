@@ -10,7 +10,7 @@ import zxcvbn
 app = Flask(__name__)
 
 # Grab version and install source from environment variables
-APP_VERSION = os.environ.get("APP_VERSION", "v1.1.15")
+APP_VERSION = os.environ.get("APP_VERSION", "latest")
 INSTALL_SOURCE = os.environ.get("INSTALL_SOURCE", "DockerHub / Manual")
 
 # Load full EFF Large Wordlist, preserving original casing
