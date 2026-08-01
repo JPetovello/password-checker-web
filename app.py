@@ -1,5 +1,4 @@
 import os
-import uuid
 import secrets
 import hashlib
 import math
@@ -30,38 +29,8 @@ else:
     print(f"[Wordlist Warning] {WORDLIST_PATH} not found. Using fallback list.")
     EFF_WORDS = ["correct", "horse", "battery", "staple", "dragon", "subway", "security"]
 
-def send_telemetry():
-    if os.getenv("DISABLE_TELEMETRY", "false").lower() == "true":
-        print("[Telemetry] Opt-out enabled. Skipping ping.")
-        return
-
-    project_token = "phc_oVCjbdLFur2Qq8cvj8jsJeeLGxVPCTTLxePGfMpQH4Vm"
-    instance_id = str(uuid.uuid4())
-
-    payload = {
-        "api_key": project_token,
-        "event": "container_started",
-        "distinct_id": instance_id,
-        "properties": {
-            "app_version": APP_VERSION,
-            "install_source": INSTALL_SOURCE,
-            "$process_person_profile": False
-        }
-    }
-
-    try:
-        response = requests.post(
-            "https://eu.i.posthog.com/i/v0/e/", 
-            json=payload, 
-            timeout=5
-        )
-        if response.status_code == 200:
-            print("[Telemetry] Anonymous startup event logged to EU servers.")
-    except Exception as e:
-        print(f"[Telemetry] Ping skipped: {e}")
-
 def send_discord_notification():
-    import os, datetime
+    import datetime
     webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
     if not webhook_url:
         return
@@ -186,7 +155,6 @@ def generate_passphrase():
 
 if __name__ == '__main__':
     try:
-        send_telemetry()
         send_discord_notification()
     except Exception as e:
         print(f"Startup initialization error: {e}")
