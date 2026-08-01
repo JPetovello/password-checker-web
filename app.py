@@ -61,22 +61,27 @@ def send_telemetry():
         print(f"[Telemetry] Ping skipped: {e}")
 
 def send_discord_notification():
+    import os, datetime
     webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
     if not webhook_url:
         return
 
-    # Clean display string for Unraid CA vs standard Docker
     source_display = "Unraid CA" if INSTALL_SOURCE.lower() == "unraid_ca" else INSTALL_SOURCE
-
     payload = {
         "content": f"🚀 **PasswordCheckerWeb** `{APP_VERSION}` container started! *(Source: **{source_display}**)*"
     }
 
+    headers = {
+        "User-Agent": "PasswordCheckerWeb/1.0 (https://github.com/hardly007/password-checker-web)"
+    }
+
     try:
-        requests.post(webhook_url, json=payload, timeout=5)
+        pid = os.getpid()
+        now = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        resp = requests.post(webhook_url, json=payload, headers=headers, timeout=5)
+        print(f"[{now}] [PID {pid}] Discord notification sent! Status: {resp.status_code}")
     except Exception as e:
         print(f"[Discord Webhook Error] {e}")
-
 
 def check_hibp(password):
     """Check password leak count via Have I Been Pwned API using k-Anonymity with required User-Agent."""
@@ -168,13 +173,14 @@ def generate_passphrase():
 if __name__ == '__main__':
     import os
     lock_file = "/tmp/startup_notification.lock"
-    if not os.path.exists(lock_file):
-        try:
-            with open(lock_file, "w") as f:
-                f.write("1")
-            send_telemetry()
-            send_discord_notification()
-        except Exception as e:
-            print(f"Startup notification error: {e}")
+    try:
+        fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.close(fd)
+        send_telemetry()
+        send_discord_notification()
+    except FileExistsError:
+        pass
+    except Exception as e:
+        print(f"Startup notification error: {e}")
 
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
