@@ -66,9 +66,17 @@ def send_discord_notification():
     if not webhook_url:
         return
 
+    # Define a persistent flag path inside a mounted data directory
+    FLAG_FILE = os.path.join(os.path.dirname(__file__), "data", ".installed")
+
+    # If the flag file exists, skip sending the notification
+    if os.path.exists(FLAG_FILE):
+        print("[Discord] First-run flag found. Skipping notification.")
+        return
+
     source_display = "Unraid CA" if INSTALL_SOURCE.lower() == "unraid_ca" else INSTALL_SOURCE
     payload = {
-        "content": f"🚀 **PasswordCheckerWeb** `{APP_VERSION}` container started! *(Source: **{source_display}**)*"
+        "content": f"🚀 **PasswordCheckerWeb** `{APP_VERSION}` successfully installed! *(Source: **{source_display}**)*"
     }
 
     headers = {
@@ -79,7 +87,13 @@ def send_discord_notification():
         pid = os.getpid()
         now = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
         resp = requests.post(webhook_url, json=payload, headers=headers, timeout=5)
-        print(f"[{now}] [PID {pid}] Discord notification sent! Status: {resp.status_code}")
+        print(f"[{now}] [PID {pid}] First-run Discord notification sent! Status: {resp.status_code}")
+        
+        # Write the persistent flag file if request succeeded
+        if resp.status_code in (200, 204):
+            os.makedirs(os.path.dirname(FLAG_FILE), exist_ok=True)
+            with open(FLAG_FILE, "w") as f:
+                f.write("installed")
     except Exception as e:
         print(f"[Discord Webhook Error] {e}")
 
@@ -171,16 +185,10 @@ def generate_passphrase():
     })
 
 if __name__ == '__main__':
-    import os
-    lock_file = "/tmp/startup_notification.lock"
     try:
-        fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        os.close(fd)
         send_telemetry()
         send_discord_notification()
-    except FileExistsError:
-        pass
     except Exception as e:
-        print(f"Startup notification error: {e}")
+        print(f"Startup initialization error: {e}")
 
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
