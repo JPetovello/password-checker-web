@@ -133,7 +133,6 @@ def evaluate_password():
     pwned_count = check_hibp(password)
     entropy_val = calculate_entropy(password)
 
-    # Capitalize the crack times display strings (e.g., "centuries" -> "Centuries", "4 years" -> "4 Years")
     raw_crack_times = results.get('crack_times_display', {})
     capitalized_crack_times = {k: v.title() for k, v in raw_crack_times.items()}
 
