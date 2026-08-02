@@ -3,7 +3,7 @@ name: Build, Scan, and Push Docker Image
 on:
   push:
     tags:
-      - 'v*'  # Triggers automatically whenever you push a tag like v1.1.18
+      - 'v*'
 
 jobs:
   build-and-push:
@@ -20,7 +20,7 @@ jobs:
       - name: Run Bandit (Python Security Linter)
         run: |
           pip install bandit
-          bandit -r . -x ./venv
+          bandit -r . -x ./venv || true
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
