@@ -4,9 +4,22 @@ import hashlib
 import math
 import requests
 from flask import Flask, render_template, request, jsonify
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import zxcvbn
 
 app = Flask(__name__)
+
+# 1. Restrict maximum request payload size to 1 MB (prevents DoS/memory overload)
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
+
+# 2. Set up Rate Limiting (Limits abuse across all routes)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 
 # Grab version and install source from environment variables
 APP_VERSION = os.environ.get("APP_VERSION", "latest")
@@ -28,6 +41,15 @@ if os.path.exists(WORDLIST_PATH):
 else:
     print(f"[Wordlist Warning] {WORDLIST_PATH} not found. Using fallback list.")
     EFF_WORDS = ["correct", "horse", "battery", "staple", "dragon", "subway", "security"]
+
+@app.after_request
+def apply_security_headers(response):
+    """Attach standard production security headers to all responses."""
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';"
+    return response
 
 def send_discord_notification():
     import datetime
@@ -108,6 +130,7 @@ def index():
     return render_template('index.html', app_version=APP_VERSION)
 
 @app.route('/api/evaluate', methods=['POST'])
+@limiter.limit("15 per minute")
 def evaluate_password():
     data = request.get_json() or {}
     password = data.get('password', '')
@@ -134,6 +157,7 @@ def evaluate_password():
     })
 
 @app.route('/api/generate', methods=['GET'])
+@limiter.limit("30 per minute")
 def generate_passphrase():
     try:
         num_words = int(request.args.get('words', 4))
