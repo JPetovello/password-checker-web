@@ -90,7 +90,8 @@ def send_discord_notification():
 
 def check_hibp(password):
     """Check password leak count via Have I Been Pwned API using k-Anonymity with required User-Agent."""
-    sha1_password = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
+    # nosec B324: SHA-1 is required by HIBP k-Anonymity API spec, explicitly non-cryptographic
+    sha1_password = hashlib.sha1(password.encode('utf-8'), usedforsecurity=False).hexdigest().upper()  # nosec B324
     prefix = sha1_password[:5]
     suffix = sha1_password[5:]
 
@@ -183,4 +184,5 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Startup initialization error: {e}")
 
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    # nosec B104: Binding to 0.0.0.0 is required inside Docker containers
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)  # nosec B104
