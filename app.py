@@ -27,6 +27,7 @@ INSTALL_SOURCE = os.environ.get("INSTALL_SOURCE", "DockerHub / Manual")
 
 # Load full EFF Large Wordlist, preserving original casing
 EFF_WORDS = []
+USING_FALLBACK_WORDLIST = False
 WORDLIST_PATH = os.path.join(os.path.dirname(__file__), 'eff_large_wordlist.txt')
 
 if os.path.exists(WORDLIST_PATH):
@@ -39,8 +40,19 @@ if os.path.exists(WORDLIST_PATH):
                 EFF_WORDS.append(parts[0])
     print(f"[Wordlist] Loaded {len(EFF_WORDS)} words from {WORDLIST_PATH}")
 else:
-    print(f"[Wordlist Warning] {WORDLIST_PATH} not found. Using fallback list.")
-    EFF_WORDS = ["correct", "horse", "battery", "staple", "dragon", "subway", "security"]
+    USING_FALLBACK_WORDLIST = True
+    print(f"[Wordlist Warning] {WORDLIST_PATH} not found. Using expanded emergency fallback list.")
+    EFF_WORDS = [
+        "correct", "horse", "battery", "staple", "dragon", "subway", "security",
+        "anchor", "bison", "cobalt", "canyon", "dolphin", "echo", "falcon",
+        "glacier", "harbor", "island", "jungle", "kettle", "lantern", "magnet",
+        "neutron", "oasis", "pinnacle", "quartz", "radar", "sierra", "timber",
+        "uranium", "vortex", "walrus", "xenon", "yellow", "zephyr", "avalanche",
+        "blizzard", "compass", "domino", "eclipse", "fossil", "granite", "horizon",
+        "igloo", "javelin", "kingdom", "leopard", "monsoon", "nebula", "octopus",
+        "pyramid", "quantum", "redwood", "saturn", "tsunami", "umbrella", "volcano",
+        "whisper", "zodiac", "alpine", "beacon", "cascade", "dune", "emerald"
+    ]
 
 @app.after_request
 def apply_security_headers(response):
@@ -127,7 +139,7 @@ def calculate_entropy(password):
 
 @app.route('/', methods=['GET'])
 def index():
-    return render_template('index.html', app_version=APP_VERSION)
+    return render_template('index.html', app_version=APP_VERSION, is_fallback=USING_FALLBACK_WORDLIST)
 
 @app.route('/api/evaluate', methods=['POST'])
 @limiter.limit("15 per minute")
@@ -174,7 +186,8 @@ def generate_passphrase():
 
     return jsonify({
         'passphrase': passphrase,
-        'words': selected_words
+        'words': selected_words,
+        'is_fallback': USING_FALLBACK_WORDLIST
     })
 
 if __name__ == '__main__':
