@@ -27,9 +27,9 @@ RUN mkdir -p /app/data && \
 ENV HOME=/tmp
 USER 99:100
 
-ENV PORT=5001 \
+ENV PORT=5000 \
     PYTHONUNBUFFERED=1
 
-EXPOSE 5001
+EXPOSE 5000
 
 CMD ["gunicorn", "-c", "gunicorn.conf.py", "app:app"]

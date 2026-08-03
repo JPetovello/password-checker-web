@@ -1,6 +1,6 @@
 import os
 
-bind = f"0.0.0.0:{os.environ.get('PORT', '5001')}"
+bind = f"0.0.0.0:{os.environ.get('PORT', '5000')}"
 workers = int(os.environ.get('GUNICORN_WORKERS', 2))
 threads = int(os.environ.get('GUNICORN_THREADS', 4))
 worker_class = "gthread"
