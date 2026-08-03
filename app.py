@@ -11,21 +11,24 @@ import zxcvbn
 app = Flask(__name__)
 
 # 1. Restrict maximum request payload size to 1 MB (prevents DoS/memory overload)
-app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_PAYLOAD_BYTES', 1 * 1024 * 1024))
 
-# 2. Set up Rate Limiting (Limits abuse across all routes)
+# 2. Set up Rate Limiting (Supports Redis via env var REDIS_URL, defaults to memory)
+REDIS_URL = os.environ.get("REDIS_URL", "memory://")
+RATELIMIT_DEFAULT = os.environ.get("RATELIMIT_DEFAULT", "200 per day;50 per hour")
+
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"
+    default_limits=[RATELIMIT_DEFAULT],
+    storage_uri=REDIS_URL
 )
 
 # Grab version and install source from environment variables
 APP_VERSION = os.environ.get("APP_VERSION", "latest")
 INSTALL_SOURCE = os.environ.get("INSTALL_SOURCE", "DockerHub / Manual")
 
-# Load full EFF Large Wordlist, preserving original casing
+# Load full EFF Large Wordlist into memory at app startup
 EFF_WORDS = []
 USING_FALLBACK_WORDLIST = False
 WORDLIST_PATH = os.path.join(os.path.dirname(__file__), 'eff_large_wordlist.txt')
@@ -69,10 +72,8 @@ def send_discord_notification():
     if not webhook_url:
         return
 
-    # Define a persistent flag path inside a mounted data directory
     FLAG_FILE = os.path.join(os.path.dirname(__file__), "data", ".installed")
 
-    # If the flag file exists, skip sending the notification
     if os.path.exists(FLAG_FILE):
         print("[Discord] First-run flag found. Skipping notification.")
         return
@@ -92,7 +93,6 @@ def send_discord_notification():
         resp = requests.post(webhook_url, json=payload, headers=headers, timeout=5)
         print(f"[{now}] [PID {pid}] First-run Discord notification sent! Status: {resp.status_code}")
         
-        # Write the persistent flag file if request succeeded
         if resp.status_code in (200, 204):
             os.makedirs(os.path.dirname(FLAG_FILE), exist_ok=True)
             with open(FLAG_FILE, "w") as f:
@@ -100,12 +100,8 @@ def send_discord_notification():
     except Exception as e:
         print(f"[Discord Webhook Error] {e}")
 
-def check_hibp(password):
-    """Check password leak count via Have I Been Pwned API using k-Anonymity with required User-Agent."""
-    sha1_password = hashlib.sha1(password.encode('utf-8'), usedforsecurity=False).hexdigest().upper()
-    prefix = sha1_password[:5]
-    suffix = sha1_password[5:]
-
+def check_hibp_by_prefix(prefix, suffix):
+    """Check HIBP via k-Anonymity using pre-computed prefix and suffix."""
     url = f"https://api.pwnedpasswords.com/range/{prefix}"
     headers = {'User-Agent': 'PasswordCheckerWeb-Homelab-App'}
     
@@ -124,6 +120,13 @@ def check_hibp(password):
         return 0
 
     return 0
+
+def check_hibp(password):
+    """Check password leak count via Have I Been Pwned API using k-Anonymity."""
+    sha1_password = hashlib.sha1(password.encode('utf-8'), usedforsecurity=False).hexdigest().upper()
+    prefix = sha1_password[:5]
+    suffix = sha1_password[5:]
+    return check_hibp_by_prefix(prefix, suffix)
 
 def calculate_entropy(password):
     charset_size = 0
@@ -145,22 +148,32 @@ def index():
 @limiter.limit("15 per minute")
 def evaluate_password():
     data = request.get_json() or {}
+    
+    # Accept client-side hashed SHA-1 prefix/suffix OR raw password fallback
+    sha1_prefix = data.get('sha1_prefix', '').strip().upper()
+    sha1_suffix = data.get('sha1_suffix', '').strip().upper()
     password = data.get('password', '')
 
-    if not password:
-        return jsonify({'error': 'No password provided'}), 400
+    if not password and not (sha1_prefix and sha1_suffix):
+        return jsonify({'error': 'No evaluation data provided'}), 400
 
-    results = zxcvbn.zxcvbn(password)
-    pwned_count = check_hibp(password)
-    entropy_val = calculate_entropy(password)
+    if password:
+        results = zxcvbn.zxcvbn(password)
+        pwned_count = check_hibp(password)
+        entropy_val = calculate_entropy(password)
+    else:
+        # Zero-knowledge mode (evaluating HIBP via client-side SHA-1 hashes)
+        pwned_count = check_hibp_by_prefix(sha1_prefix, sha1_suffix)
+        results = {'score': 0, 'feedback': {}, 'crack_times_display': {}}
+        entropy_val = 0
 
     raw_crack_times = results.get('crack_times_display', {})
     capitalized_crack_times = {k: v.title() for k, v in raw_crack_times.items()}
 
     return jsonify({
-        'score': results['score'],
+        'score': results.get('score', 0),
         'entropy': entropy_val,
-        'feedback': results['feedback'],
+        'feedback': results.get('feedback', {}),
         'crack_times_display': capitalized_crack_times,
         'hibp': {
             'found': pwned_count > 0,

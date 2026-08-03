@@ -19,16 +19,16 @@
     </script>
 
     <style>
-        /* Light Mode (High Contrast - Minimum 4.5:1 / 7:1) */
+        /* Light Mode */
         :root {
             --bg-body: #f1f5f9;
             --bg-main: #ffffff;
             --bg-card: #f8fafc;
             --bg-box: #ffffff;
-            --border-color: #94a3b8; /* Stronger borders */
-            --text-primary: #0f172a; /* 15:1 contrast */
+            --border-color: #94a3b8;
+            --text-primary: #0f172a;
             --text-heading: #0f172a;
-            --text-muted: #334155;   /* Crisp slate for small text */
+            --text-muted: #334155;
             --input-bg: #ffffff;
             --btn-primary: #0284c7;
             --btn-text: #ffffff;
@@ -38,19 +38,21 @@
             --meter-3: #0369a1;
             --meter-4: #15803d;
             --meter-bg: #cbd5e1;
+            --color-danger: #dc2626;
+            --color-success: #15803d;
         }
 
-        /* Dark Mode (High Contrast - Minimum 4.5:1 / 7:1) */
+        /* Dark Mode */
         html.dark {
-            --bg-body: #0b0f19;        /* Pitch slate background */
-            --bg-main: #111827;        /* Dark card background */
-            --bg-card: #1f2937;        /* Distinct section background */
-            --bg-box: #111827;         /* Inset box background */
-            --border-color: #4b5563;   /* High-visibility borders */
-            --text-primary: #ffffff;   /* Pure white main text */
-            --text-heading: #38bdf8;   /* High-contrast cyan headers */
-            --text-muted: #cbd5e1;     /* Light slate for small labels */
-            --input-bg: #030712;       /* Very dark input boxes for depth */
+            --bg-body: #0b0f19;
+            --bg-main: #111827;
+            --bg-card: #1f2937;
+            --bg-box: #111827;
+            --border-color: #4b5563;
+            --text-primary: #ffffff;
+            --text-heading: #38bdf8;
+            --text-muted: #cbd5e1;
+            --input-bg: #030712;
             --btn-primary: #0284c7;
             --btn-text: #ffffff;
             --meter-0: #f87171;
@@ -59,26 +61,30 @@
             --meter-3: #38bdf8;
             --meter-4: #4ade80;
             --meter-bg: #374151;
+            --color-danger: #f87171;
+            --color-success: #4ade80;
         }
 
         body { 
-            font-family: system-ui, -apple-system, sans-serif; 
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
             display: flex; 
             flex-direction: column; 
             justify-content: center; 
             align-items: center; 
             min-height: 100vh; 
             margin: 0; 
+            padding: 1.5rem 1rem;
             background-color: var(--bg-body); 
             color: var(--text-primary); 
             transition: background-color 0.2s ease, color 0.2s ease;
+            box-sizing: border-box;
         }
 
         main { 
             background: var(--bg-main); 
             padding: 2.5rem; 
             border-radius: 0.75rem; 
-            box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.5); 
+            box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.3); 
             width: 100%; 
             max-width: 850px; 
             box-sizing: border-box; 
@@ -166,7 +172,7 @@
             cursor: pointer; 
             font-size: 1rem;
             font-weight: 700; 
-            transition: background 0.2s; 
+            transition: filter 0.2s; 
         }
 
         button:hover { 
@@ -178,6 +184,21 @@
             grid-template-columns: repeat(3, 1fr); 
             gap: 1rem; 
             margin-top: 1rem; 
+        }
+
+        @media (max-width: 640px) {
+            main {
+                padding: 1.5rem;
+            }
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            .generator-row {
+                flex-direction: column;
+            }
+            .generator-row button {
+                width: 100% !important;
+            }
         }
 
         .metric-box { 
@@ -235,13 +256,14 @@
             margin-top: 0; 
             margin-bottom: 0; 
             height: 48px; 
+            flex-shrink: 0;
         }
     </style>
 </head>
 <body>
     <main>
         <div class="header-row">
-            <h1>Password & Passphrase Analyzer</h1>
+            <h1>Password &amp; Passphrase Analyzer</h1>
             
             <button 
                 id="theme-toggle" 
@@ -257,42 +279,42 @@
         
         <div class="card">
             <h2>Password Strength Evaluator</h2>
-            <input type="text" id="passwordInput" placeholder="Enter password to analyze..." aria-label="Password to evaluate">
+            <input type="password" id="passwordInput" placeholder="Enter password to analyze..." aria-label="Password to evaluate" autocomplete="off">
             
             <div class="grid">
                 <div class="metric-box">
                     <div class="metric-title">Score</div>
-                    <div class="metric-value" id="scoreVal">- / 4</div>
+                    <div class="metric-value" id="scoreVal" aria-live="polite">- / 4</div>
                     <div class="meter-container" aria-hidden="true">
                         <div id="meterBar" class="meter-bar"></div>
                     </div>
                 </div>
                 <div class="metric-box">
                     <div class="metric-title">Entropy</div>
-                    <div class="metric-value" id="entropyVal">0 bits</div>
+                    <div class="metric-value" id="entropyVal" aria-live="polite">0 bits</div>
                 </div>
                 <div class="metric-box">
                     <div class="metric-title">Length</div>
-                    <div class="metric-value" id="lengthVal">0 chars</div>
+                    <div class="metric-value" id="lengthVal" aria-live="polite">0 chars</div>
                 </div>
             </div>
 
-            <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
-                <div class="metric-box"><div class="metric-title">Online Attack</div><div class="metric-value" id="onlineVal" style="font-size: 0.95rem;">-</div></div>
-                <div class="metric-box"><div class="metric-title">Offline Fast Hash (GPU)</div><div class="metric-value" id="fastHashVal" style="font-size: 0.95rem;">-</div></div>
-                <div class="metric-box"><div class="metric-title">Offline Slow Hash</div><div class="metric-value" id="slowHashVal" style="font-size: 0.95rem;">-</div></div>
+            <div class="grid">
+                <div class="metric-box"><div class="metric-title">Online Attack</div><div class="metric-value" id="onlineVal" style="font-size: 0.95rem;" aria-live="polite">-</div></div>
+                <div class="metric-box"><div class="metric-title">Offline Fast Hash (GPU)</div><div class="metric-value" id="fastHashVal" style="font-size: 0.95rem;" aria-live="polite">-</div></div>
+                <div class="metric-box"><div class="metric-title">Offline Slow Hash</div><div class="metric-value" id="slowHashVal" style="font-size: 0.95rem;" aria-live="polite">-</div></div>
             </div>
 
             <div class="metric-box" style="margin-top: 1rem;">
                 <div class="metric-title">Breach Exposure (HIBP)</div>
-                <div class="metric-value" id="hibpVal" style="font-size: 0.95rem; font-weight: normal;">-</div>
+                <div class="metric-value" id="hibpVal" style="font-size: 0.95rem; font-weight: normal;" aria-live="polite">-</div>
             </div>
         </div>
 
         <div class="card" style="margin-bottom: 0;">
             <h2>EFF Passphrase Generator</h2>
             <div class="generator-row">
-                <input type="text" id="passphraseOutput" readonly placeholder="Generated passphrase...">
+                <input type="text" id="passphraseOutput" readonly placeholder="Generated passphrase..." aria-label="Generated passphrase output">
                 <button type="button" id="copyBtn">Copy</button>
             </div>
             
@@ -310,7 +332,10 @@
         </div>
     </main>
 
-    {% include 'footer.html' %}
+    <footer style="text-align: center; margin-top: 2rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">
+        <p style="margin: 0; font-weight: 600;">PasswordCheckerWeb latest</p>
+        <p style="margin: 0.25rem 0 0 0; font-size: 0.80rem;">Built with AI collaboration &amp; checked with local AI auditing</p>
+    </footer>
 
     <script>
         const toggleBtn = document.getElementById('theme-toggle');
@@ -337,6 +362,7 @@
             const wordCount = document.getElementById('wordCountSelect').value;
             try {
                 const response = await fetch(`/api/generate?words=${wordCount}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
                 if (data.passphrase) {
                     document.getElementById('passphraseOutput').value = data.passphrase;
@@ -346,31 +372,41 @@
             }
         });
 
-        document.getElementById('copyBtn').addEventListener('click', () => {
+        document.getElementById('copyBtn').addEventListener('click', async () => {
             const output = document.getElementById('passphraseOutput');
             if (!output.value) return;
 
-            output.select();
-            output.setSelectionRange(0, 99999);
-
             try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    const copyBtn = document.getElementById('copyBtn');
-                    const originalText = copyBtn.innerText;
-                    copyBtn.innerText = 'Copied!';
-                    setTimeout(() => {
-                        copyBtn.innerText = originalText;
-                    }, 1500);
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(output.value);
+                } else {
+                    output.select();
+                    output.setSelectionRange(0, 99999);
+                    document.execCommand('copy');
                 }
+                
+                const copyBtn = document.getElementById('copyBtn');
+                const originalText = copyBtn.innerText;
+                copyBtn.innerText = 'Copied!';
+                setTimeout(() => {
+                    copyBtn.innerText = originalText;
+                }, 1500);
             } catch (err) {
-                console.error('Fallback copy failed', err);
+                console.error('Copy failed', err);
             }
         });
 
-        document.getElementById('passwordInput').addEventListener('input', (e) => {
+        function debounce(func, delay = 300) {
+            let timeout;
+            return (...args) => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func(...args), delay);
+            };
+        }
+
+        document.getElementById('passwordInput').addEventListener('input', debounce((e) => {
             evaluatePassword(e.target.value);
-        });
+        }, 300));
 
         const meterColors = [
             'var(--meter-0)',
@@ -405,6 +441,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password: password })
                 });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
                 const score = (data.score !== undefined && data.score >= 0 && data.score <= 4) ? data.score : 0;
                 
@@ -421,11 +458,11 @@
                 
                 if (data.hibp) {
                     if (data.hibp.found) {
-                        document.getElementById('hibpVal').innerText = `Found in ${data.hibp.count} breaches!`;
-                        document.getElementById('hibpVal').style.color = '#f87171';
+                        document.getElementById('hibpVal').innerText = `Found in ${data.hibp.count.toLocaleString()} breaches!`;
+                        document.getElementById('hibpVal').style.color = 'var(--color-danger)';
                     } else {
                         document.getElementById('hibpVal').innerText = 'No breaches found';
-                        document.getElementById('hibpVal').style.color = '#4ade80';
+                        document.getElementById('hibpVal').style.color = 'var(--color-success)';
                     }
                 }
             } catch (err) {
