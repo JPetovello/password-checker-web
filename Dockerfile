@@ -24,6 +24,9 @@ RUN mkdir -p /app/data && \
     (adduser -D -u 99 -G users nobody 2>/dev/null || true) && \
     chown -R 99:100 /app
 
+ARG VERSION=latest
+ENV APP_VERSION=${VERSION}
+
 ENV HOME=/tmp
 USER 99:100
 
