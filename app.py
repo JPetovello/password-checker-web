@@ -10,22 +10,24 @@ import zxcvbn
 
 app = Flask(__name__)
 
-# 1. Restrict maximum request payload size to 1 MB (prevents DoS/memory overload)
+# Restrict maximum request payload size to 1 MB
 app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
 
-# 2. Set up Rate Limiting (Limits abuse across all routes)
+# Configurable Rate Limiter Storage (Defaults to memory, supports Redis via env)
+RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
+
 limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"
+    storage_uri=RATELIMIT_STORAGE_URI
 )
 
-# Grab version and install source from environment variables
+# Application Metadata
 APP_VERSION = os.environ.get("APP_VERSION", "latest")
 INSTALL_SOURCE = os.environ.get("INSTALL_SOURCE", "DockerHub / Manual")
 
-# Load full EFF Large Wordlist, preserving original casing
+# Load EFF Wordlist
 EFF_WORDS = []
 USING_FALLBACK_WORDLIST = False
 WORDLIST_PATH = os.path.join(os.path.dirname(__file__), 'eff_large_wordlist.txt')
@@ -56,7 +58,7 @@ else:
 
 @app.after_request
 def apply_security_headers(response):
-    """Attach standard production security headers to all responses."""
+    """Attach security headers to all HTTP responses."""
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
@@ -69,10 +71,8 @@ def send_discord_notification():
     if not webhook_url:
         return
 
-    # Define a persistent flag path inside a mounted data directory
     FLAG_FILE = os.path.join(os.path.dirname(__file__), "data", ".installed")
 
-    # If the flag file exists, skip sending the notification
     if os.path.exists(FLAG_FILE):
         print("[Discord] First-run flag found. Skipping notification.")
         return
@@ -92,7 +92,6 @@ def send_discord_notification():
         resp = requests.post(webhook_url, json=payload, headers=headers, timeout=5)
         print(f"[{now}] [PID {pid}] First-run Discord notification sent! Status: {resp.status_code}")
         
-        # Write the persistent flag file if request succeeded
         if resp.status_code in (200, 204):
             os.makedirs(os.path.dirname(FLAG_FILE), exist_ok=True)
             with open(FLAG_FILE, "w") as f:
@@ -100,8 +99,11 @@ def send_discord_notification():
     except Exception as e:
         print(f"[Discord Webhook Error] {e}")
 
+# Trigger first-run notification check on module import
+send_discord_notification()
+
 def check_hibp(password):
-    """Check password leak count via Have I Been Pwned API using k-Anonymity with required User-Agent."""
+    """Check password leak count via Have I Been Pwned API using k-Anonymity."""
     sha1_password = hashlib.sha1(password.encode('utf-8'), usedforsecurity=False).hexdigest().upper()
     prefix = sha1_password[:5]
     suffix = sha1_password[5:]
@@ -191,9 +193,4 @@ def generate_passphrase():
     })
 
 if __name__ == '__main__':
-    try:
-        send_discord_notification()
-    except Exception as e:
-        print(f"Startup initialization error: {e}")
-
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
