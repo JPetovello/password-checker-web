@@ -3,13 +3,17 @@ FROM python:3.13-alpine AS builder
 
 WORKDIR /app
 
-# Install build dependencies required for compiling C-extensions on Alpine
+# Install build dependencies for compiling wheels/extensions
 RUN apk add --no-cache gcc g++ musl-dev libffi-dev python3-dev build-base
+
+# Create a virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # --- Stage 2: Final Runner ---
 FROM python:3.13-alpine
@@ -27,8 +31,9 @@ ENV APP_SOURCE=$SOURCE
 RUN getent group 100 || addgroup -g 100 users && \
     adduser -D -u 99 -G users nobody 2>/dev/null || true
 
-# Copy compiled Python packages from the builder stage
-COPY --from=builder /install /usr/local
+# Copy virtual environment from builder stage
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY . .
 
