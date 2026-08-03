@@ -3,8 +3,8 @@ FROM python:3.13-alpine AS builder
 
 WORKDIR /app
 
-# Install temporary build dependencies required for compiling Python C-extensions
-RUN apk add --no-cache gcc musl-dev libffi-dev
+# Install build dependencies required for compiling C-extensions on Alpine
+RUN apk add --no-cache gcc g++ musl-dev libffi-dev python3-dev build-base
 
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
@@ -40,4 +40,4 @@ USER 99:100
 
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
