@@ -1,8 +1,10 @@
 import os
+import re
 import secrets
 import hashlib
 import math
 import requests
+import redis
 from flask import Flask, render_template, request, jsonify
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -13,7 +15,7 @@ app = Flask(__name__)
 # 1. Restrict maximum request payload size to 1 MB (prevents DoS/memory overload)
 app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_PAYLOAD_BYTES', 1 * 1024 * 1024))
 
-# 2. Set up Rate Limiting (Supports Redis via env var REDIS_URL, defaults to memory)
+# 2. Set up Rate Limiting & Redis Connection
 REDIS_URL = os.environ.get("REDIS_URL", "memory://")
 RATELIMIT_DEFAULT = os.environ.get("RATELIMIT_DEFAULT", "200 per day;50 per hour")
 
@@ -23,6 +25,16 @@ limiter = Limiter(
     default_limits=[RATELIMIT_DEFAULT],
     storage_uri=REDIS_URL
 )
+
+# Optional direct Redis client for general app caching/state
+redis_client = None
+if REDIS_URL.startswith("redis://"):
+    try:
+        redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+        redis_client.ping()
+        print("[Redis] Successfully connected to Redis instance.")
+    except Exception as e:
+        print(f"[Redis Warning] Could not connect to Redis: {e}")
 
 # Grab version and install source from environment variables
 APP_VERSION = os.environ.get("APP_VERSION", "latest")
@@ -56,6 +68,25 @@ else:
         "pyramid", "quantum", "redwood", "saturn", "tsunami", "umbrella", "volcano",
         "whisper", "zodiac", "alpine", "beacon", "cascade", "dune", "emerald"
     ]
+
+# -------------------------------------------------------------------
+# Input Security & Sanitization Helper
+# -------------------------------------------------------------------
+def sanitize_input(user_input: str) -> str:
+    """
+    Sanitizes incoming input payloads to prevent control character injection,
+    malformed byte sequences, and excessive payload sizes.
+    """
+    if not isinstance(user_input, str) or not user_input:
+        return ""
+    
+    max_length = 512
+    user_input = user_input[:max_length]
+    
+    # Strip non-printable ASCII control characters
+    sanitized = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', user_input)
+    
+    return sanitized.strip()
 
 @app.after_request
 def apply_security_headers(response):
@@ -150,9 +181,9 @@ def evaluate_password():
     data = request.get_json() or {}
     
     # Accept client-side hashed SHA-1 prefix/suffix OR raw password fallback
-    sha1_prefix = data.get('sha1_prefix', '').strip().upper()
-    sha1_suffix = data.get('sha1_suffix', '').strip().upper()
-    password = data.get('password', '')
+    sha1_prefix = sanitize_input(data.get('sha1_prefix', '')).upper()
+    sha1_suffix = sanitize_input(data.get('sha1_suffix', '')).upper()
+    password = sanitize_input(data.get('password', ''))
 
     if not password and not (sha1_prefix and sha1_suffix):
         return jsonify({'error': 'No evaluation data provided'}), 400
