@@ -2,6 +2,9 @@ name: Build, Scan, and Push Docker Image
 
 on:
   push:
+    branches:
+      - 'main'
+      - 'dev'
     tags:
       - 'v*'
 
@@ -28,13 +31,25 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Determine Docker Tags
+        id: tags
+        run: |
+          if [[ "${{ github.ref }}" == refs/heads/dev ]]; then
+            echo "TAGS=hardly007/password-checker-web:dev" >> $GITHUB_ENV
+            echo "VERSION=dev" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            echo "TAGS=hardly007/password-checker-web:latest" >> $GITHUB_ENV
+            echo "VERSION=latest" >> $GITHUB_ENV
+          else
+            echo "TAGS=hardly007/password-checker-web:latest,hardly007/password-checker-web:${{ github.ref_name }}" >> $GITHUB_ENV
+            echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+          fi
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            hardly007/password-checker-web:latest
-            hardly007/password-checker-web:${{ github.ref_name }}
+          tags: ${{ env.TAGS }}
           build-args: |
-            VERSION=${{ github.ref_name }}
+            VERSION=${{ env.VERSION }}
