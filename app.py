@@ -15,8 +15,22 @@ app = Flask(__name__)
 # 1. Restrict maximum request payload size to 1 MB (prevents DoS/memory overload)
 app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_PAYLOAD_BYTES', 1 * 1024 * 1024))
 
-# 2. Set up Rate Limiting & Redis Connection
-REDIS_URL = os.environ.get("REDIS_URL", "memory://")
+# 2. Set up Rate Limiting & Redis Connection (Handles empty env vars from Docker/Unraid)
+raw_redis_url = os.environ.get("REDIS_URL", "").strip() or None
+
+if not raw_redis_url:
+    redis_host = os.environ.get("REDIS_HOST", "").strip()
+    redis_port = os.environ.get("REDIS_PORT", "6379").strip()
+    redis_password = os.environ.get("REDIS_PASSWORD", "").strip()
+
+    if redis_host:
+        auth = f":{redis_password}@" if redis_password else ""
+        REDIS_URL = f"redis://{auth}{redis_host}:{redis_port}/0"
+    else:
+        REDIS_URL = "memory://"
+else:
+    REDIS_URL = raw_redis_url
+
 RATELIMIT_DEFAULT = os.environ.get("RATELIMIT_DEFAULT", "200 per day;50 per hour")
 
 limiter = Limiter(
@@ -32,9 +46,9 @@ if REDIS_URL.startswith("redis://"):
     try:
         redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
         redis_client.ping()
-        print("[Redis] Successfully connected to Redis instance.")
+        print(f"[Redis] Successfully connected to Redis instance ({REDIS_URL}).")
     except Exception as e:
-        print(f"[Redis Warning] Could not connect to Redis: {e}")
+        print(f"[Redis Warning] Could not connect to Redis ({REDIS_URL}): {e}")
 
 # Grab version and install source from environment variables
 APP_VERSION = os.environ.get("APP_VERSION", "latest")
