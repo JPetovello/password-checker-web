@@ -31,7 +31,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Determine Docker Tags
+      - name: Determine Docker Tags and Version
         id: tags
         run: |
           if [[ "${{ github.ref }}" == refs/heads/dev ]]; then
@@ -39,7 +39,7 @@ jobs:
             echo "VERSION=dev" >> $GITHUB_ENV
           elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
             echo "TAGS=hardly007/password-checker-web:latest" >> $GITHUB_ENV
-            echo "VERSION=latest" >> $GITHUB_ENV
+            echo "VERSION=main" >> $GITHUB_ENV
           else
             echo "TAGS=hardly007/password-checker-web:latest,hardly007/password-checker-web:${{ github.ref_name }}" >> $GITHUB_ENV
             echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
@@ -52,4 +52,4 @@ jobs:
           push: true
           tags: ${{ env.TAGS }}
           build-args: |
-            VERSION=${{ env.VERSION }}
+            APP_VERSION=${{ env.VERSION }}
