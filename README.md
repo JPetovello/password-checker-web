@@ -16,11 +16,13 @@ A lightweight, secure web application for evaluating password strength, calculat
 
 Run the container using Docker CLI:
 
-    docker run -d \
-      --name password-checker-web \
-      -p 5000:5000 \
-      -e APP_SOURCE="docker_standalone" \
-      hardly007/password-checker-web:latest
+```bash
+docker run -d \
+  --name password-checker-web \
+  -p 5000:5000 \
+  -e APP_SOURCE="docker_standalone" \
+  hardly007/password-checker-web:latest
+```
 
 ### Unraid (Community Applications)
 
@@ -28,9 +30,24 @@ Search for Password Checker Web in the Unraid Community Applications tab and ins
 
 ## Environment Variables
 
-* PORT: Port the web server listens on (default: 5000).
-* APP_SOURCE: Identifies where the container was deployed (default: docker_standalone).
-* DISABLE_TELEMETRY: Set to true to opt out of anonymous startup telemetry.
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `PORT` | `5000` | Port the internal Gunicorn / Flask web server listens on. |
+| `APP_SOURCE` | `docker_standalone` | Identifies where the container was deployed (e.g., `unraid_ca`). |
+| `DISABLE_TELEMETRY` | `false` | Set to `true` to opt out of anonymous startup telemetry. |
+| `REDIS_URL` | *(blank)* | Full Redis connection URI (e.g., `redis://:secret@192.168.1.50:6379/0`). Overrides individual host/port variables when populated. |
+| `REDIS_HOST` | `localhost` | Redis host or IP address. Used when `REDIS_URL` is empty or omitted. |
+| `REDIS_PORT` | `6379` | Redis port number. Used when `REDIS_URL` is empty or omitted. |
+| `REDIS_PASSWORD` | *(blank)* | Optional Redis authentication password (for host/port configuration). |
+| `REDIS_DB` | `0` | Redis database index. |
+
+### Redis Connection Resolution Logic
+
+The application establishes its cache and rate-limiting store using a tiered fallback strategy:
+
+1. **Explicit URL (`REDIS_URL`)**: Checked first. If present and non-empty, the app connects directly via this URI.
+2. **Host & Port Fallback (`REDIS_HOST` / `REDIS_PORT`)**: If `REDIS_URL` is an empty string (`""`) or unset, the app builds a connection string formatted as `redis://:[PASSWORD]@[HOST]:[PORT]/[DB]`.
+3. **In-Memory Emergency Fallback (`memory://`)**: If Redis is completely unavailable or unconfigured, Flask-Limiter gracefully degrades to in-memory tracking so the web application remains fully operational.
 
 ## License
 
