@@ -39,7 +39,7 @@ jobs:
             echo "TAGS=hardly007/password-checker-web:dev" >> $GITHUB_ENV
             echo "VERSION=dev" >> $GITHUB_ENV
           elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
-            echo "TAGS=hardly007/password-checker-web:latest" >> $GITHUB_ENV
+            echo "TAGS=hardly007/password-checker-web:main" >> $GITHUB_ENV
             echo "VERSION=main" >> $GITHUB_ENV
           else
             echo "TAGS=hardly007/password-checker-web:latest,hardly007/password-checker-web:${{ github.ref_name }}" >> $GITHUB_ENV
