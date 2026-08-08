@@ -1,25 +1,27 @@
-# --- Final Stage ---
-FROM python:3.12-slim
+# --- Builder Stage ---
+FROM python:3.13-alpine AS builder
 
 WORKDIR /app
 
-# Install system essentials for any required compilation
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy and install requirements directly
+RUN apk add --no-cache gcc musl-dev python3-dev
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir wheel && \
+    pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
-# Copy application source code
+# --- Final Stage ---
+FROM python:3.13-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/wheels /wheels
+RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
+
 COPY . .
 
 # Ensure data directory exists and assign permissions to nobody:users (99:100)
 RUN mkdir -p /app/data && \
-    groupadd -g 100 users || true && \
-    useradd -u 99 -g users -m -s /bin/bash nobody || true && \
+    (getent group 100 || addgroup -g 100 users) && \
+    (adduser -D -u 99 -G users nobody 2>/dev/null || true) && \
     chown -R 99:100 /app
 
 ARG APP_VERSION=latest
