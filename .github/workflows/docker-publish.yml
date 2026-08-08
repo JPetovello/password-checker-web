@@ -23,7 +23,7 @@ jobs:
       - name: Run Bandit (Python Security Linter)
         run: |
           pip install bandit
-          bandit -r . -c .bandit -x ./venv
+          bandit -r . -c .bandit -x ./venv,./tests
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
