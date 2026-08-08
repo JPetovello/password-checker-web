@@ -4,10 +4,12 @@ A lightweight, secure web application for evaluating password strength, calculat
 
 ## Features
 
-* **Password Strength Evaluation:** Powered by zxcvbn for robust, pattern-based strength checks.
+* **Password Strength Evaluation:** Powered by zxcvbn for robust, pattern-based strength checks with detailed cracking scenario breakdowns.
 * **Breach Detection:** Checks passwords securely using the Have I Been Pwned (HIBP) API via k-Anonymity (only the first 5 characters of the SHA-1 hash are sent).
 * **Entropy Calculation:** Real-time mathematical entropy calculation based on character set size and length.
-* **Secure Passphrase Generator:** Generates memorable, high-entropy passphrases using the EFF Large Wordlist.
+* **Secure Passphrase Generator:** Generates memorable, high-entropy passphrases using the EFF Large Wordlist with custom separators and batch options.
+* **Progressive Web App (PWA) Support:** Installable directly to mobile or desktop home screens with offline static asset caching via service worker.
+* **Dark Mode & System Theme Sync:** Automatically detects system color preferences with manual toggle override and `localStorage` persistence.
 * **Privacy-First:** No passwords ever leave your instance unhashed, and telemetry can be opted out.
 
 ## Installation
