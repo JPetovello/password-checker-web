@@ -3,7 +3,7 @@ FROM python:3.13-alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache gcc musl-dev python3-dev
+RUN apk add --no-cache gcc musl-dev python3-dev libffi-dev build-base
 COPY requirements.txt .
 RUN pip install --no-cache-dir wheel && \
     pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
