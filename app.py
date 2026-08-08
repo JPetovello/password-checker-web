@@ -128,10 +128,20 @@ def send_discord_notification():
     if not webhook_url:
         return
 
-    FLAG_FILE = os.path.join(os.path.dirname(__file__), "data", ".installed")
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+    flag_file = os.path.join(data_dir, ".installed")
 
-    if os.path.exists(FLAG_FILE):
-        print("[Discord] First-run flag found. Skipping notification.")
+    # Atomic creation check to prevent multi-worker race conditions
+    os.makedirs(data_dir, exist_ok=True)
+    try:
+        fd = os.open(flag_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, b"installed")
+        os.close(fd)
+    except FileExistsError:
+        print("[Discord] First-run flag already exists. Skipping notification.")
+        return
+    except Exception as e:
+        print(f"[Discord Flag Error] {e}")
         return
 
     source_display = "Unraid CA" if INSTALL_SOURCE.lower() == "unraid_ca" else INSTALL_SOURCE
@@ -148,13 +158,14 @@ def send_discord_notification():
         now = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
         resp = requests.post(webhook_url, json=payload, headers=headers, timeout=5)
         print(f"[{now}] [PID {pid}] First-run Discord notification sent! Status: {resp.status_code}")
-        
-        if resp.status_code in (200, 204):
-            os.makedirs(os.path.dirname(FLAG_FILE), exist_ok=True)
-            with open(FLAG_FILE, "w") as f:
-                f.write("installed")
     except Exception as e:
         print(f"[Discord Webhook Error] {e}")
+
+# Execute notification check at module import time
+try:
+    send_discord_notification()
+except Exception as err:
+    print(f"[Startup Error] Telemetry check failed: {err}")
 
 def check_hibp_by_prefix(prefix, suffix):
     """Check HIBP via k-Anonymity using pre-computed prefix and suffix."""
@@ -292,12 +303,10 @@ def generate_passphrase():
     if not word_pool:
         return jsonify({'error': 'Wordlist empty'}), 500
 
-    # Separator selection: dash, underscore, dot, space, or number
     raw_sep = request.args.get('separator', '-')
     allowed_separators = {'-': '-', '_': '_', '.': '.', 'space': ' ', 'number': 'num'}
     separator_mode = allowed_separators.get(raw_sep, '-')
 
-    # Calculate theoretical entropy per word: log2(len(word_pool))
     bits_per_word = math.log2(len(word_pool))
     theoretical_entropy = round(num_words * bits_per_word, 1)
 
@@ -305,7 +314,6 @@ def generate_passphrase():
     for _ in range(batch_count):
         selected_words = [secrets.choice(word_pool) for _ in range(num_words)]
         if separator_mode == 'num':
-            # Insert a random digit between words
             passphrase = "".join(f"{word}{secrets.choice('0123456789')}" for word in selected_words[:-1]) + selected_words[-1]
         else:
             passphrase = separator_mode.join(selected_words)
@@ -322,9 +330,4 @@ def generate_passphrase():
     })
 
 if __name__ == '__main__':
-    try:
-        send_discord_notification()
-    except Exception as e:
-        print(f"Startup initialization error: {e}")
-
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
