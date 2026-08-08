@@ -40,6 +40,14 @@ limiter = Limiter(
     storage_uri=REDIS_URL
 )
 
+# Custom 429 Rate Limit Error Handler
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({
+        "error": "Rate limit exceeded",
+        "message": "Too many requests. Please slow down and try again later."
+    }), 429
+
 # Optional direct Redis client for general app caching/state
 redis_client = None
 if REDIS_URL.startswith("redis://"):

@@ -40,6 +40,9 @@
             --meter-bg: #cbd5e1;
             --color-danger: #dc2626;
             --color-success: #15803d;
+            --alert-bg: #fef2f2;
+            --alert-border: #fca5a5;
+            --alert-text: #991b1b;
         }
 
         /* Dark Mode */
@@ -63,6 +66,9 @@
             --meter-bg: #374151;
             --color-danger: #f87171;
             --color-success: #4ade80;
+            --alert-bg: #450a0a;
+            --alert-border: #991b1b;
+            --alert-text: #fca5a5;
         }
 
         body { 
@@ -123,6 +129,19 @@
 
         .theme-toggle-btn:hover {
             background: var(--bg-card);
+        }
+
+        .alert-banner {
+            display: none;
+            background-color: var(--alert-bg);
+            border: 1px solid var(--alert-border);
+            color: var(--alert-text);
+            padding: 0.85rem 1rem;
+            border-radius: 0.375rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-align: center;
         }
 
         .card { 
@@ -276,6 +295,8 @@
                 <span id="theme-text">Dark</span>
             </button>
         </div>
+
+        <div id="rateLimitBanner" class="alert-banner" role="alert" aria-live="assertive"></div>
         
         <div class="card">
             <h2>Password Strength Evaluator</h2>
@@ -341,6 +362,7 @@
         const toggleBtn = document.getElementById('theme-toggle');
         const themeIcon = document.getElementById('theme-icon');
         const themeText = document.getElementById('theme-text');
+        const rateLimitBanner = document.getElementById('rateLimitBanner');
 
         function updateThemeUI(isDark) {
             toggleBtn.setAttribute('aria-pressed', isDark);
@@ -358,11 +380,28 @@
             updateThemeUI(isDarkNow);
         });
 
+        function showRateLimitError(msg) {
+            rateLimitBanner.textContent = msg || '⚠️ Rate limit exceeded. Please slow down and try again shortly.';
+            rateLimitBanner.style.display = 'block';
+        }
+
+        function clearRateLimitError() {
+            rateLimitBanner.style.display = 'none';
+            rateLimitBanner.textContent = '';
+        }
+
         document.getElementById('generateBtn').addEventListener('click', async () => {
             const wordCount = document.getElementById('wordCountSelect').value;
             try {
                 const response = await fetch(`/api/generate?words=${wordCount}`);
+                if (response.status === 429) {
+                    const data = await response.json();
+                    showRateLimitError(data.message);
+                    return;
+                }
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                clearRateLimitError();
                 const data = await response.json();
                 if (data.passphrase) {
                     document.getElementById('passphraseOutput').value = data.passphrase;
@@ -423,6 +462,7 @@
             document.getElementById('lengthVal').innerText = password.length + ' chars';
             
             if (!password) {
+                clearRateLimitError();
                 document.getElementById('scoreVal').innerText = '- / 4';
                 document.getElementById('scoreVal').style.color = 'var(--text-primary)';
                 document.getElementById('entropyVal').innerText = '0 bits';
@@ -441,7 +481,15 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password: password })
                 });
+
+                if (response.status === 429) {
+                    const data = await response.json();
+                    showRateLimitError(data.message);
+                    return;
+                }
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                clearRateLimitError();
                 const data = await response.json();
                 const score = (data.score !== undefined && data.score >= 0 && data.score <= 4) ? data.score : 0;
                 
