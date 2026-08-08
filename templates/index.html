@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Password & Passphrase Analyzer</title>
+    <title>Password &amp; Passphrase Analyzer</title>
+    
+    <!-- PWA Manifest & Theme -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <script>
         (function() {
@@ -537,6 +543,17 @@
         <p style="margin: 0; font-weight: 600;">PasswordCheckerWeb {{ app_version }}</p>
         <p style="margin: 0.25rem 0 0 0; font-size: 0.80rem;">Built with AI collaboration &amp; checked with local AI auditing</p>
     </footer>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then((reg) => console.log('ServiceWorker registration successful with scope: ', reg.scope))
+                    .catch((err) => console.log('ServiceWorker registration failed: ', err));
+            });
+        }
+    </script>
 
     <script>
         const toggleBtn = document.getElementById('theme-toggle');
