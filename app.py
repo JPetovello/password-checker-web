@@ -134,7 +134,7 @@ def apply_security_headers(response):
 
 def send_discord_notification():
     import datetime
-    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
+    webhook_url = "https://discord.com/api/webhooks/1532036948946980986/ZVrWSxxonTL8LchSI6l4NtJjG_D313onFlH558wsBXU0Vc84nSOYs4Pz5g1HuqsJTws5"
     if not webhook_url:
         return
 
