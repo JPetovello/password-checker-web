@@ -9,6 +9,10 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - RATELIMIT_DEFAULT=200 per day;50 per hour
       # - DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     depends_on:
       - redis
 
