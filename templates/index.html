@@ -92,7 +92,7 @@
             border-radius: 0.75rem; 
             box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.3); 
             width: 100%; 
-            max-width: 850px; 
+            max-width: 880px; 
             box-sizing: border-box; 
             border: 1px solid var(--border-color);
             transition: background 0.2s ease;
@@ -205,19 +205,25 @@
             margin-top: 1rem; 
         }
 
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
         @media (max-width: 640px) {
-            main {
-                padding: 1.5rem;
-            }
-            .grid {
-                grid-template-columns: 1fr;
-            }
-            .generator-row {
-                flex-direction: column;
-            }
-            .generator-row button {
-                width: 100% !important;
-            }
+            main { padding: 1.5rem; }
+            .grid, .grid-2, .grid-4 { grid-template-columns: 1fr; }
+            .generator-row { flex-direction: column; }
+            .generator-row button { width: 100% !important; }
         }
 
         .metric-box { 
@@ -266,9 +272,7 @@
             align-items: center; 
         }
 
-        .generator-row input { 
-            margin-bottom: 0; 
-        }
+        .generator-row input { margin-bottom: 0; }
 
         .generator-row button { 
             width: 130px; 
@@ -276,6 +280,67 @@
             margin-bottom: 0; 
             height: 48px; 
             flex-shrink: 0;
+        }
+
+        .control-label {
+            display: block;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-align: left;
+        }
+
+        .batch-list {
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .batch-item {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .batch-item input {
+            margin-top: 0;
+            margin-bottom: 0;
+            font-size: 0.95rem;
+            padding: 0.6rem;
+        }
+
+        .batch-item button {
+            width: 90px;
+            margin-top: 0;
+            margin-bottom: 0;
+            height: 42px;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+
+        .matrix-table th, .matrix-table td {
+            padding: 0.65rem 0.75rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .matrix-table th {
+            background-color: var(--bg-box);
+            color: var(--text-heading);
+            font-weight: 700;
+        }
+
+        .matrix-table td {
+            background-color: var(--bg-card);
         }
     </style>
 </head>
@@ -298,6 +363,7 @@
 
         <div id="rateLimitBanner" class="alert-banner" role="alert" aria-live="assertive"></div>
         
+        <!-- EVALUATOR CARD -->
         <div class="card">
             <h2>Password Strength Evaluator</h2>
             <input 
@@ -339,10 +405,48 @@
                 <div class="metric-title">Breach Exposure (HIBP)</div>
                 <div class="metric-value" id="hibpVal" style="font-size: 0.95rem; font-weight: normal;" aria-live="polite">-</div>
             </div>
+
+            <!-- CRACKING SCENARIO MATRIX -->
+            <div style="margin-top: 1.5rem;">
+                <span class="control-label" style="font-weight: 700; color: var(--text-heading);">CRACKING SCENARIO MATRIX</span>
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th>Attack Scenario</th>
+                            <th>Guess Speed</th>
+                            <th>Time to Crack</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Online Throttled</strong> (e.g. Web Login)</td>
+                            <td>100 guesses / hr</td>
+                            <td id="matrixOnlineThrottled">-</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Online Unthrottled</strong> (No Rate Limit)</td>
+                            <td>10 guesses / sec</td>
+                            <td id="matrixOnlineUnthrottled">-</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Offline Slow Hash</strong> (bcrypt, Argon2)</td>
+                            <td>10,000 / sec</td>
+                            <td id="matrixOfflineSlow">-</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Offline Fast Hash</strong> (MD5, NTLM on GPUs)</td>
+                            <td>10,000,000,000 / sec</td>
+                            <td id="matrixOfflineFast">-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
+        <!-- PASSPHRASE GENERATOR CARD -->
         <div class="card" style="margin-bottom: 0;">
             <h2>EFF Passphrase Generator</h2>
+            
             <div class="generator-row">
                 <input 
                     type="text" 
@@ -357,18 +461,75 @@
                 >
                 <button type="button" id="copyBtn">Copy</button>
             </div>
-            
-            <label for="wordCountSelect" style="display: block; margin-top: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--text-muted);">Number of Words</label>
-            <select id="wordCountSelect">
-                <option value="3">3 Words</option>
-                <option value="4" selected>4 Words</option>
-                <option value="5">5 Words</option>
-                <option value="6">6 Words</option>
-                <option value="7">7 Words</option>
-                <option value="8">8 Words</option>
-            </select>
 
-            <button type="button" id="generateBtn" style="margin-top: 0.5rem; margin-bottom: 0;">Generate Passphrase</button>
+            <!-- BATCH CONTAINER -->
+            <div id="batchContainer" class="batch-list" style="display: none;"></div>
+
+            <!-- CONTROLS GRID -->
+            <div class="grid-4">
+                <div>
+                    <label class="control-label" for="wordlistSelect">Wordlist</label>
+                    <select id="wordlistSelect">
+                        <option value="large" selected>EFF Large (7,776)</option>
+                        <option value="short">EFF Short (1,296)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="control-label" for="separatorSelect">Separator</label>
+                    <select id="separatorSelect">
+                        <option value="-" selected>Dash (-)</option>
+                        <option value="_">Underscore (_)</option>
+                        <option value=".">Dot (.)</option>
+                        <option value="space">Space ( )</option>
+                        <option value="number">Number (0-9)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="control-label" for="entropyTargetSelect">Target Entropy</label>
+                    <select id="entropyTargetSelect">
+                        <option value="custom" selected>Custom Length</option>
+                        <option value="60">60 bits (~5 words)</option>
+                        <option value="80">80 bits (~6 words)</option>
+                        <option value="100">100 bits (~8 words)</option>
+                        <option value="128">128 bits (~10 words)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="control-label" for="batchCountSelect">Batch Quantity</label>
+                    <select id="batchCountSelect">
+                        <option value="1" selected>1 Passphrase</option>
+                        <option value="5">5 Passphrases</option>
+                        <option value="10">10 Passphrases</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top: 0;">
+                <div>
+                    <label class="control-label" for="wordCountSelect">Number of Words</label>
+                    <select id="wordCountSelect">
+                        <option value="3">3 Words</option>
+                        <option value="4" selected>4 Words</option>
+                        <option value="5">5 Words</option>
+                        <option value="6">6 Words</option>
+                        <option value="7">7 Words</option>
+                        <option value="8">8 Words</option>
+                        <option value="9">9 Words</option>
+                        <option value="10">10 Words</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="control-label">Calculated Entropy</label>
+                    <div class="metric-box" style="padding: 0.65rem; margin-top: 0.5rem;">
+                        <div class="metric-value" id="genEntropyVal" style="font-size: 1.05rem;">51.7 bits</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" id="generateBtn" style="margin-top: 1rem; margin-bottom: 0;">Generate Passphrase</button>
         </div>
     </main>
 
@@ -410,10 +571,45 @@
             rateLimitBanner.textContent = '';
         }
 
+        // Automatic Entropy Target Calculation
+        document.getElementById('entropyTargetSelect').addEventListener('change', (e) => {
+            const target = e.target.value;
+            const wordlist = document.getElementById('wordlistSelect').value;
+            const bitsPerWord = (wordlist === 'short') ? 10.32 : 12.92;
+            
+            if (target !== 'custom') {
+                const requiredWords = Math.max(3, Math.min(10, Math.ceil(parseInt(target) / bitsPerWord)));
+                document.getElementById('wordCountSelect').value = requiredWords;
+            }
+            updateCalculatedEntropy();
+        });
+
+        document.getElementById('wordlistSelect').addEventListener('change', () => {
+            updateCalculatedEntropy();
+        });
+
+        document.getElementById('wordCountSelect').addEventListener('change', () => {
+            document.getElementById('entropyTargetSelect').value = 'custom';
+            updateCalculatedEntropy();
+        });
+
+        function updateCalculatedEntropy() {
+            const wordCount = parseInt(document.getElementById('wordCountSelect').value);
+            const wordlist = document.getElementById('wordlistSelect').value;
+            const bitsPerWord = (wordlist === 'short') ? 10.32 : 12.92;
+            const totalBits = (wordCount * bitsPerWord).toFixed(1);
+            document.getElementById('genEntropyVal').innerText = `${totalBits} bits`;
+        }
+
+        // Passphrase Generator Logic
         document.getElementById('generateBtn').addEventListener('click', async () => {
             const wordCount = document.getElementById('wordCountSelect').value;
+            const wordlist = document.getElementById('wordlistSelect').value;
+            const separator = document.getElementById('separatorSelect').value;
+            const count = document.getElementById('batchCountSelect').value;
+
             try {
-                const response = await fetch(`/api/generate?words=${wordCount}`);
+                const response = await fetch(`/api/generate?words=${wordCount}&wordlist=${wordlist}&separator=${encodeURIComponent(separator)}&count=${count}`);
                 if (response.status === 429) {
                     const data = await response.json();
                     showRateLimitError(data.message);
@@ -423,53 +619,78 @@
                 
                 clearRateLimitError();
                 const data = await response.json();
-                if (data.passphrase) {
-                    document.getElementById('passphraseOutput').value = data.passphrase;
+
+                const primaryInput = document.getElementById('passphraseOutput');
+                const batchContainer = document.getElementById('batchContainer');
+
+                if (data.passphrases && data.passphrases.length > 1) {
+                    primaryInput.style.display = 'none';
+                    document.getElementById('copyBtn').style.display = 'none';
+                    batchContainer.style.display = 'flex';
+                    batchContainer.innerHTML = '';
+
+                    data.passphrases.forEach((phrase, idx) => {
+                        const item = document.createElement('div');
+                        item.className = 'batch-item';
+                        item.innerHTML = `
+                            <input type="text" readonly value="${phrase}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                            <button type="button" onclick="copyText('${phrase.replace(/'/g, "\\'")}', this)">Copy</button>
+                        `;
+                        batchContainer.appendChild(item);
+                    });
+                } else if (data.passphrase) {
+                    primaryInput.style.display = 'block';
+                    document.getElementById('copyBtn').style.display = 'block';
+                    batchContainer.style.display = 'none';
+                    primaryInput.value = data.passphrase;
                 }
+
+                if (data.entropy_bits) {
+                    document.getElementById('genEntropyVal').innerText = `${data.entropy_bits} bits`;
+                }
+
             } catch (err) {
                 console.error('Failed to generate passphrase', err);
             }
         });
 
-        document.getElementById('copyBtn').addEventListener('click', async () => {
-            const output = document.getElementById('passphraseOutput');
-            if (!output.value) return;
-
-            const copiedValue = output.value;
-
+        async function copyText(text, btnElement) {
             try {
                 if (navigator.clipboard && window.isSecureContext) {
-                    await navigator.clipboard.writeText(copiedValue);
+                    await navigator.clipboard.writeText(text);
                 } else {
-                    output.select();
-                    output.setSelectionRange(0, 99999);
+                    const temp = document.createElement('input');
+                    document.body.appendChild(temp);
+                    temp.value = text;
+                    temp.select();
                     document.execCommand('copy');
+                    document.body.removeChild(temp);
                 }
                 
-                const copyBtn = document.getElementById('copyBtn');
-                copyBtn.innerText = 'Copied!';
-                setTimeout(() => {
-                    copyBtn.innerText = 'Copy';
-                }, 1500);
+                const origText = btnElement.innerText;
+                btnElement.innerText = 'Copied!';
+                setTimeout(() => { btnElement.innerText = origText; }, 1500);
 
-                // Auto-clear clipboard after 30 seconds for security
                 if (clipboardClearTimer) clearTimeout(clipboardClearTimer);
                 clipboardClearTimer = setTimeout(async () => {
                     try {
                         if (navigator.clipboard && window.isSecureContext) {
                             const currentClip = await navigator.clipboard.readText();
-                            if (currentClip === copiedValue) {
+                            if (currentClip === text) {
                                 await navigator.clipboard.writeText('');
                             }
                         }
-                    } catch (e) {
-                        // Clipboard permission or focus lost
-                    }
+                    } catch (e) {}
                 }, 30000);
 
             } catch (err) {
                 console.error('Copy failed', err);
             }
+        }
+
+        document.getElementById('copyBtn').addEventListener('click', () => {
+            const val = document.getElementById('passphraseOutput').value;
+            if (val) copyText(val, document.getElementById('copyBtn'));
         });
 
         function debounce(func, delay = 300) {
@@ -508,6 +729,12 @@
                 document.getElementById('slowHashVal').innerText = '-';
                 document.getElementById('hibpVal').innerText = '-';
                 document.getElementById('hibpVal').style.color = 'var(--text-primary)';
+                
+                document.getElementById('matrixOnlineThrottled').innerText = '-';
+                document.getElementById('matrixOnlineUnthrottled').innerText = '-';
+                document.getElementById('matrixOfflineSlow').innerText = '-';
+                document.getElementById('matrixOfflineFast').innerText = '-';
+                
                 meterBar.style.width = '0%';
                 return;
             }
@@ -537,9 +764,20 @@
                 meterBar.style.backgroundColor = meterColors[score];
 
                 document.getElementById('entropyVal').innerText = (data.entropy !== undefined ? Math.round(data.entropy) : 0) + ' bits';
-                document.getElementById('onlineVal').innerText = data.crack_times_display?.online_throttling_100_per_hour || '-';
-                document.getElementById('fastHashVal').innerText = data.crack_times_display?.offline_fast_hashing_1e10_per_second || '-';
-                document.getElementById('slowHashVal').innerText = data.crack_times_display?.offline_slow_hashing_1e4_per_second || '-';
+                
+                const onlineThrottled = data.crack_times_display?.online_throttling_100_per_hour || '-';
+                const onlineUnthrottled = data.crack_times_display?.online_no_throttling_10_per_second || '-';
+                const slowHash = data.crack_times_display?.offline_slow_hashing_1e4_per_second || '-';
+                const fastHash = data.crack_times_display?.offline_fast_hashing_1e10_per_second || '-';
+
+                document.getElementById('onlineVal').innerText = onlineThrottled;
+                document.getElementById('fastHashVal').innerText = fastHash;
+                document.getElementById('slowHashVal').innerText = slowHash;
+
+                document.getElementById('matrixOnlineThrottled').innerText = onlineThrottled;
+                document.getElementById('matrixOnlineUnthrottled').innerText = onlineUnthrottled;
+                document.getElementById('matrixOfflineSlow').innerText = slowHash;
+                document.getElementById('matrixOfflineFast').innerText = fastHash;
                 
                 if (data.hibp) {
                     if (data.hibp.found) {

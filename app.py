@@ -62,24 +62,31 @@ if REDIS_URL.startswith("redis://"):
 APP_VERSION = os.environ.get("APP_VERSION", "latest")
 INSTALL_SOURCE = os.environ.get("INSTALL_SOURCE", "DockerHub / Manual")
 
-# Load full EFF Large Wordlist into memory at app startup
-EFF_WORDS = []
+# Load EFF Wordlists into memory at app startup
+EFF_LARGE_WORDS = []
+EFF_SHORT_WORDS = []
 USING_FALLBACK_WORDLIST = False
-WORDLIST_PATH = os.path.join(os.path.dirname(__file__), 'eff_large_wordlist.txt')
 
-if os.path.exists(WORDLIST_PATH):
-    with open(WORDLIST_PATH, 'r', encoding='utf-8') as f:
-        for line in f:
-            parts = line.strip().split(maxsplit=1)
-            if len(parts) >= 2:
-                EFF_WORDS.append(parts[1])
-            elif parts:
-                EFF_WORDS.append(parts[0])
-    print(f"[Wordlist] Loaded {len(EFF_WORDS)} words from {WORDLIST_PATH}")
-else:
+def load_wordlist(filename):
+    words = []
+    filepath = os.path.join(os.path.dirname(__file__), filename)
+    if os.path.exists(filepath):
+        with open(filepath, 'r', encoding='utf-8') as f:
+            for line in f:
+                parts = line.strip().split(maxsplit=1)
+                if len(parts) >= 2:
+                    words.append(parts[1])
+                elif parts:
+                    words.append(parts[0])
+    return words
+
+EFF_LARGE_WORDS = load_wordlist('eff_large_wordlist.txt')
+EFF_SHORT_WORDS = load_wordlist('eff_short_wordlist.txt')
+
+if not EFF_LARGE_WORDS:
     USING_FALLBACK_WORDLIST = True
-    print(f"[Wordlist Warning] {WORDLIST_PATH} not found. Using expanded emergency fallback list.")
-    EFF_WORDS = [
+    print("[Wordlist Warning] Full EFF Large list not found. Using expanded emergency fallback list.")
+    EFF_LARGE_WORDS = [
         "correct", "horse", "battery", "staple", "dragon", "subway", "security",
         "anchor", "bison", "cobalt", "canyon", "dolphin", "echo", "falcon",
         "glacier", "harbor", "island", "jungle", "kettle", "lantern", "magnet",
@@ -91,23 +98,19 @@ else:
         "whisper", "zodiac", "alpine", "beacon", "cascade", "dune", "emerald"
     ]
 
+if not EFF_SHORT_WORDS:
+    EFF_SHORT_WORDS = EFF_LARGE_WORDS
+
 # -------------------------------------------------------------------
 # Input Security & Sanitization Helper
 # -------------------------------------------------------------------
 def sanitize_input(user_input: str) -> str:
-    """
-    Sanitizes incoming input payloads to prevent control character injection,
-    malformed byte sequences, and excessive payload sizes.
-    """
+    """Sanitizes incoming input payloads to prevent control character injection."""
     if not isinstance(user_input, str) or not user_input:
         return ""
-    
     max_length = 512
     user_input = user_input[:max_length]
-    
-    # Strip non-printable ASCII control characters
     sanitized = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', user_input)
-    
     return sanitized.strip()
 
 @app.after_request
@@ -199,7 +202,7 @@ def index():
 
 @app.route('/favicon.ico')
 def favicon():
-    """Serve favicon directly or return 204 No Content to avoid browser console errors."""
+    """Serve favicon directly or return 204 No Content to avoid browser errors."""
     static_dir = os.path.join(app.root_path, 'static')
     if os.path.exists(os.path.join(static_dir, 'favicon.ico')):
         return send_from_directory(static_dir, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
@@ -212,10 +215,6 @@ def robots():
 
 @app.route('/healthz', methods=['GET'])
 def healthcheck():
-    """
-    Lightweight healthcheck endpoint for Docker/K8s/monitoring tools.
-    Verifies app responsiveness and Redis connectivity (if configured).
-    """
     health_status = {
         "status": "healthy",
         "redis": "disabled"
@@ -240,7 +239,6 @@ def healthcheck():
 def evaluate_password():
     data = request.get_json() or {}
     
-    # Accept client-side hashed SHA-1 prefix/suffix OR raw password fallback
     sha1_prefix = sanitize_input(data.get('sha1_prefix', '')).upper()
     sha1_suffix = sanitize_input(data.get('sha1_suffix', '')).upper()
     password = sanitize_input(data.get('password', ''))
@@ -253,7 +251,6 @@ def evaluate_password():
         pwned_count = check_hibp(password)
         entropy_val = calculate_entropy(password)
     else:
-        # Zero-knowledge mode (evaluating HIBP via client-side SHA-1 hashes)
         pwned_count = check_hibp_by_prefix(sha1_prefix, sha1_suffix)
         results = {'score': 0, 'feedback': {}, 'crack_times_display': {}}
         entropy_val = 0
@@ -282,15 +279,45 @@ def generate_passphrase():
 
     num_words = max(3, min(num_words, 10))
 
-    if not EFF_WORDS:
+    try:
+        batch_count = int(request.args.get('count', 1))
+    except (ValueError, TypeError):
+        batch_count = 1
+
+    batch_count = max(1, min(batch_count, 10))
+
+    list_type = request.args.get('wordlist', 'large').lower()
+    word_pool = EFF_SHORT_WORDS if list_type == 'short' else EFF_LARGE_WORDS
+
+    if not word_pool:
         return jsonify({'error': 'Wordlist empty'}), 500
 
-    selected_words = [secrets.choice(EFF_WORDS) for _ in range(num_words)]
-    passphrase = "-".join(selected_words)
+    # Separator selection: dash, underscore, dot, space, or number
+    raw_sep = request.args.get('separator', '-')
+    allowed_separators = {'-': '-', '_': '_', '.': '.', 'space': ' ', 'number': 'num'}
+    separator_mode = allowed_separators.get(raw_sep, '-')
+
+    # Calculate theoretical entropy per word: log2(len(word_pool))
+    bits_per_word = math.log2(len(word_pool))
+    theoretical_entropy = round(num_words * bits_per_word, 1)
+
+    passphrases = []
+    for _ in range(batch_count):
+        selected_words = [secrets.choice(word_pool) for _ in range(num_words)]
+        if separator_mode == 'num':
+            # Insert a random digit between words
+            passphrase = "".join(f"{word}{secrets.choice('0123456789')}" for word in selected_words[:-1]) + selected_words[-1]
+        else:
+            passphrase = separator_mode.join(selected_words)
+        passphrases.append(passphrase)
 
     return jsonify({
-        'passphrase': passphrase,
-        'words': selected_words,
+        'passphrase': passphrases[0],
+        'passphrases': passphrases,
+        'count': batch_count,
+        'words': num_words,
+        'entropy_bits': theoretical_entropy,
+        'wordlist_type': list_type,
         'is_fallback': USING_FALLBACK_WORDLIST
     })
 
