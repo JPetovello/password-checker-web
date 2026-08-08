@@ -1,6 +1,6 @@
 Flask==3.0.3
 zxcvbn-python==4.4.24
-requests==2.32.4
+requests==2.33.0
 Flask-Limiter==3.8.0
 redis==5.0.7
 packaging==24.1
