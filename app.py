@@ -62,7 +62,7 @@ if REDIS_URL.startswith("redis://"):
 APP_VERSION = os.environ.get("APP_VERSION", "latest")
 INSTALL_SOURCE = os.environ.get("INSTALL_SOURCE", "DockerHub / Manual")
 
-# Load EFF Wordlists into memory at app startup
+# Load EFF Wordlists into memory at app startup with SHA-256 integrity verification
 EFF_LARGE_WORDS = []
 EFF_SHORT_WORDS = []
 USING_FALLBACK_WORDLIST = False
@@ -71,13 +71,23 @@ def load_wordlist(filename):
     words = []
     filepath = os.path.join(os.path.dirname(__file__), filename)
     if os.path.exists(filepath):
-        with open(filepath, 'r', encoding='utf-8') as f:
-            for line in f:
-                parts = line.strip().split(maxsplit=1)
-                if len(parts) >= 2:
-                    words.append(parts[1])
-                elif parts:
-                    words.append(parts[0])
+        try:
+            sha256_hash = hashlib.sha256()
+            with open(filepath, 'rb') as f:
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(byte_block)
+            file_digest = sha256_hash.hexdigest()
+            print(f"[Wordlist Integrity] Loaded {filename} | SHA-256: {file_digest}")
+
+            with open(filepath, 'r', encoding='utf-8') as f:
+                for line in f:
+                    parts = line.strip().split(maxsplit=1)
+                    if len(parts) >= 2:
+                        words.append(parts[1])
+                    elif parts:
+                        words.append(parts[0])
+        except Exception as e:
+            print(f"[Wordlist Error] Failed to parse {filename}: {e}")
     return words
 
 EFF_LARGE_WORDS = load_wordlist('eff_large_wordlist.txt')
@@ -131,14 +141,12 @@ def send_discord_notification():
     data_dir = os.path.join(os.path.dirname(__file__), "data")
     flag_file = os.path.join(data_dir, ".installed")
 
-    # Atomic creation check to prevent multi-worker race conditions
     os.makedirs(data_dir, exist_ok=True)
     try:
         fd = os.open(flag_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         os.write(fd, b"installed")
         os.close(fd)
     except FileExistsError:
-        print("[Discord] First-run flag already exists. Skipping notification.")
         return
     except Exception as e:
         print(f"[Discord Flag Error] {e}")
@@ -154,21 +162,20 @@ def send_discord_notification():
     }
 
     try:
-        pid = os.getpid()
-        now = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
         resp = requests.post(webhook_url, json=payload, headers=headers, timeout=5)
-        print(f"[{now}] [PID {pid}] First-run Discord notification sent! Status: {resp.status_code}")
     except Exception as e:
         print(f"[Discord Webhook Error] {e}")
 
-# Execute notification check at module import time
 try:
     send_discord_notification()
 except Exception as err:
     print(f"[Startup Error] Telemetry check failed: {err}")
 
 def check_hibp_by_prefix(prefix, suffix):
-    """Check HIBP via k-Anonymity using pre-computed prefix and suffix."""
+    """Check HIBP via k-Anonymity using pre-computed prefix and suffix with strict format validation."""
+    if not re.fullmatch(r'^[0-9A-F]{5}$', prefix) or not re.fullmatch(r'^[0-9A-F]{35,40}$', suffix):
+        return 0
+
     url = f"https://api.pwnedpasswords.com/range/{prefix}"
     headers = {'User-Agent': 'PasswordCheckerWeb-Homelab-App'}
     
@@ -213,7 +220,6 @@ def index():
 
 @app.route('/favicon.ico')
 def favicon():
-    """Serve favicon directly or return 204 No Content to avoid browser errors."""
     static_dir = os.path.join(app.root_path, 'static')
     if os.path.exists(os.path.join(static_dir, 'favicon.ico')):
         return send_from_directory(static_dir, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
@@ -221,7 +227,6 @@ def favicon():
 
 @app.route('/robots.txt')
 def robots():
-    """Prevent web crawlers from indexing private self-hosted instances."""
     return "User-agent: *\nDisallow: /", 200, {'Content-Type': 'text/plain'}
 
 @app.route('/healthz', methods=['GET'])
@@ -239,7 +244,7 @@ def healthcheck():
                 health_status["redis"] = "unresponsive"
                 health_status["status"] = "degraded"
         except Exception as e:
-            health_status["redis"] = f"error: {str(e)}"
+            health_status["redis"] = f"error: internal failure"
             health_status["status"] = "degraded"
 
     status_code = 200 if health_status["status"] in ["healthy", "degraded"] else 500
@@ -258,6 +263,8 @@ def evaluate_password():
         return jsonify({'error': 'No evaluation data provided'}), 400
 
     if password:
+        if len(password) > 256:
+            return jsonify({'error': 'Password exceeds maximum allowed length of 256 characters'}), 400
         results = zxcvbn.zxcvbn(password)
         pwned_count = check_hibp(password)
         entropy_val = calculate_entropy(password)
@@ -328,6 +335,19 @@ def generate_passphrase():
         'wordlist_type': list_type,
         'is_fallback': USING_FALLBACK_WORDLIST
     })
+
+@app.errorhandler(400)
+def bad_request_error(error):
+    return jsonify({"error": "Bad Request", "message": "The request payload or parameters were malformed."}), 400
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify({"error": "Not Found", "message": "The requested endpoint does not exist."}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f"Internal Server Error: {error}")
+    return jsonify({"error": "An internal error occurred."}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
