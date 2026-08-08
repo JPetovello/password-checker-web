@@ -65,3 +65,11 @@ jobs:
           tags: ${{ env.TAGS }}
           build-args: |
             APP_VERSION=${{ env.VERSION }}
+
+      - name: Sync README to Docker Hub
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: hardly007/password-checker-web
+          readme-file: README.md
