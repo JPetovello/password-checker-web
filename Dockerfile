@@ -28,6 +28,11 @@ ARG APP_VERSION=latest
 ENV APP_VERSION=${APP_VERSION}
 
 ENV HOME=/tmp
+
+# Native Docker Healthcheck using Python built-in urllib
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/healthz')" || exit 1
+
 USER 99:100
 
 ENV PORT=5000 \

@@ -189,6 +189,31 @@ def calculate_entropy(password):
 def index():
     return render_template('index.html', app_version=APP_VERSION, is_fallback=USING_FALLBACK_WORDLIST)
 
+@app.route('/healthz', methods=['GET'])
+def healthcheck():
+    """
+    Lightweight healthcheck endpoint for Docker/K8s/monitoring tools.
+    Verifies app responsiveness and Redis connectivity (if configured).
+    """
+    health_status = {
+        "status": "healthy",
+        "redis": "disabled"
+    }
+
+    if redis_client is not None:
+        try:
+            if redis_client.ping():
+                health_status["redis"] = "connected"
+            else:
+                health_status["redis"] = "unresponsive"
+                health_status["status"] = "degraded"
+        except Exception as e:
+            health_status["redis"] = f"error: {str(e)}"
+            health_status["status"] = "degraded"
+
+    status_code = 200 if health_status["status"] in ["healthy", "degraded"] else 500
+    return jsonify(health_status), status_code
+
 @app.route('/api/evaluate', methods=['POST'])
 @limiter.limit("15 per minute")
 def evaluate_password():
