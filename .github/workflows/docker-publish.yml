@@ -42,16 +42,14 @@ jobs:
       - name: Determine Docker Tags and Version
         id: tags
         run: |
-          VERSION=$(git describe --tags --always 2>/dev/null || echo "${{ github.ref_name }}")
-          if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then
-            VERSION="latest"
-          fi
-
-          if [[ "${{ github.ref }}" == refs/heads/main ]]; then
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # If triggered by a version tag, use the exact tag name
+            VERSION="${{ github.ref_name }}"
             echo "TAGS=hardly007/password-checker-web:latest,hardly007/password-checker-web:${VERSION}" >> $GITHUB_ENV
           else
-            echo "TAGS=hardly007/password-checker-web:latest,hardly007/password-checker-web:${{ github.ref_name }}" >> $GITHUB_ENV
-            VERSION="${{ github.ref_name }}"
+            # If triggered by a push to main, only use latest (and avoid git-describe mess)
+            VERSION="latest"
+            echo "TAGS=hardly007/password-checker-web:latest" >> $GITHUB_ENV
           fi
 
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
