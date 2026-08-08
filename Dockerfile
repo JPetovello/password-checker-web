@@ -1,24 +1,19 @@
-# --- Builder Stage ---
-FROM python:3.13-slim AS builder
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir wheel && \
-    pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
-
-# --- Final Stage ---
+# --- Builder & Final Stage ---
 FROM python:3.13-slim
 
 WORKDIR /app
 
-COPY --from=builder /app/wheels /wheels
-RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
+# Install system essentials for any required compilation
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
+# Copy and install requirements directly
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy application source code
 COPY . .
 
 # Ensure data directory exists and assign permissions to nobody:users (99:100)
