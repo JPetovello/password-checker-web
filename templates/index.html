@@ -300,7 +300,16 @@
         
         <div class="card">
             <h2>Password Strength Evaluator</h2>
-            <input type="password" id="passwordInput" placeholder="Enter password to analyze..." aria-label="Password to evaluate" autocomplete="off">
+            <input 
+                type="password" 
+                id="passwordInput" 
+                placeholder="Enter password to analyze..." 
+                aria-label="Password to evaluate" 
+                autocomplete="new-password"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+            >
             
             <div class="grid">
                 <div class="metric-box">
@@ -335,7 +344,17 @@
         <div class="card" style="margin-bottom: 0;">
             <h2>EFF Passphrase Generator</h2>
             <div class="generator-row">
-                <input type="text" id="passphraseOutput" readonly placeholder="Generated passphrase..." aria-label="Generated passphrase output">
+                <input 
+                    type="text" 
+                    id="passphraseOutput" 
+                    readonly 
+                    placeholder="Generated passphrase..." 
+                    aria-label="Generated passphrase output"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                >
                 <button type="button" id="copyBtn">Copy</button>
             </div>
             
@@ -363,6 +382,7 @@
         const themeIcon = document.getElementById('theme-icon');
         const themeText = document.getElementById('theme-text');
         const rateLimitBanner = document.getElementById('rateLimitBanner');
+        let clipboardClearTimer = null;
 
         function updateThemeUI(isDark) {
             toggleBtn.setAttribute('aria-pressed', isDark);
@@ -415,9 +435,11 @@
             const output = document.getElementById('passphraseOutput');
             if (!output.value) return;
 
+            const copiedValue = output.value;
+
             try {
                 if (navigator.clipboard && window.isSecureContext) {
-                    await navigator.clipboard.writeText(output.value);
+                    await navigator.clipboard.writeText(copiedValue);
                 } else {
                     output.select();
                     output.setSelectionRange(0, 99999);
@@ -425,11 +447,26 @@
                 }
                 
                 const copyBtn = document.getElementById('copyBtn');
-                const originalText = copyBtn.innerText;
                 copyBtn.innerText = 'Copied!';
                 setTimeout(() => {
-                    copyBtn.innerText = originalText;
+                    copyBtn.innerText = 'Copy';
                 }, 1500);
+
+                // Auto-clear clipboard after 30 seconds for security
+                if (clipboardClearTimer) clearTimeout(clipboardClearTimer);
+                clipboardClearTimer = setTimeout(async () => {
+                    try {
+                        if (navigator.clipboard && window.isSecureContext) {
+                            const currentClip = await navigator.clipboard.readText();
+                            if (currentClip === copiedValue) {
+                                await navigator.clipboard.writeText('');
+                            }
+                        }
+                    } catch (e) {
+                        // Clipboard permission or focus lost
+                    }
+                }, 30000);
+
             } catch (err) {
                 console.error('Copy failed', err);
             }

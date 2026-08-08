@@ -5,7 +5,7 @@ import hashlib
 import math
 import requests
 import redis
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import zxcvbn
@@ -196,6 +196,19 @@ def calculate_entropy(password):
 @app.route('/', methods=['GET'])
 def index():
     return render_template('index.html', app_version=APP_VERSION, is_fallback=USING_FALLBACK_WORDLIST)
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serve favicon directly or return 204 No Content to avoid browser console errors."""
+    static_dir = os.path.join(app.root_path, 'static')
+    if os.path.exists(os.path.join(static_dir, 'favicon.ico')):
+        return send_from_directory(static_dir, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    return '', 204
+
+@app.route('/robots.txt')
+def robots():
+    """Prevent web crawlers from indexing private self-hosted instances."""
+    return "User-agent: *\nDisallow: /", 200, {'Content-Type': 'text/plain'}
 
 @app.route('/healthz', methods=['GET'])
 def healthcheck():
