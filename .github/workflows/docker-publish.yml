@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -40,13 +42,19 @@ jobs:
       - name: Determine Docker Tags and Version
         id: tags
         run: |
+          VERSION=$(git describe --tags --always 2>/dev/null || echo "${{ github.ref_name }}")
+          if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then
+            VERSION="latest"
+          fi
+
           if [[ "${{ github.ref }}" == refs/heads/main ]]; then
-            echo "TAGS=hardly007/password-checker-web:latest" >> $GITHUB_ENV
-            echo "VERSION=latest" >> $GITHUB_ENV
+            echo "TAGS=hardly007/password-checker-web:latest,hardly007/password-checker-web:${VERSION}" >> $GITHUB_ENV
           else
             echo "TAGS=hardly007/password-checker-web:latest,hardly007/password-checker-web:${{ github.ref_name }}" >> $GITHUB_ENV
-            echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+            VERSION="${{ github.ref_name }}"
           fi
+
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
